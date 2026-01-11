@@ -12,7 +12,9 @@ import {
   CheckCircle2, 
   UserCheck,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Loader2,
+  Database
 } from 'lucide-react';
 import { TrainingBooking, BookingStatus, TrainingType, User as UserType } from '../types';
 
@@ -24,6 +26,11 @@ interface BookingModalProps {
   users: UserType[];
   kams: string[]; 
   packages: string[]; 
+}
+
+interface SheetMapping {
+  clientName: string;
+  ticketId: string;
 }
 
 const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, bookingToEdit, users, kams, packages }) => {
@@ -45,10 +52,56 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
     location: 'Corporate Office',
   });
 
-  // State for Custom Date Pickers
   const [activePicker, setActivePicker] = useState<'submission' | 'training' | null>(null);
   const [calendarMonth, setCalendarMonth] = useState(new Date());
+  const [sheetMappings, setSheetMappings] = useState<SheetMapping[]>([]);
+  const [isSheetLoading, setIsSheetLoading] = useState(false);
   const calendarRef = useRef<HTMLDivElement>(null);
+
+  // Fetch Master Ticket ID Data from Google Sheet
+  useEffect(() => {
+    if (isOpen && !bookingToEdit) {
+      const fetchSheetData = async () => {
+        setIsSheetLoading(true);
+        try {
+          // Public CSV Export URL for the provided Sheet
+          const sheetId = '1l8B6jdStatgm0sItoFHMHoQTNh7n5VjnuvNDVMR4d3A';
+          const gid = '128281966';
+          const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
+          
+          const response = await fetch(url);
+          const csvText = await response.text();
+          
+          // Basic CSV parsing logic
+          const lines = csvText.split(/\r?\n/);
+          const mappings: SheetMapping[] = [];
+          
+          // Skip header row
+          for (let i = 1; i < lines.length; i++) {
+            if (!lines[i]) continue;
+            
+            // Split by comma but handle commas inside quotes
+            const columns = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
+            
+            // Column D (index 3) is Ticket ID
+            // Column F (index 5) is Client Name
+            const ticketId = columns[3]?.replace(/^"|"$/g, '').trim();
+            const clientName = columns[5]?.replace(/^"|"$/g, '').trim();
+            
+            if (ticketId && clientName) {
+              mappings.push({ ticketId, clientName });
+            }
+          }
+          setSheetMappings(mappings);
+        } catch (error) {
+          console.error("Failed to fetch sheet data:", error);
+        } finally {
+          setIsSheetLoading(false);
+        }
+      };
+      fetchSheetData();
+    }
+  }, [isOpen, bookingToEdit]);
 
   useEffect(() => {
     if (isOpen) {
@@ -73,7 +126,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
       } else {
         setFormData(prev => ({ 
           ...prev, 
-          ticketId: `TKT-${Math.floor(100000 + Math.random() * 900000)}`,
+          ticketId: '', // Start empty to allow auto-fill
           clientName: '',
           assignedPerson: users.length > 0 ? users[0].name : '',
           kamName: kams.length > 0 ? kams[0] : '',
@@ -87,7 +140,24 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
     }
   }, [isOpen, bookingToEdit, users, kams, packages]);
 
-  // Handle click outside to close calendar
+  // Lookup Logic for Client Name
+  const handleClientNameChange = (val: string) => {
+    setFormData(prev => {
+      const updatedData = { ...prev, clientName: val };
+      
+      // If we're not editing an existing record, check for master sheet match
+      if (!bookingToEdit && sheetMappings.length > 0) {
+        const match = sheetMappings.find(
+          m => m.clientName.toLowerCase() === val.toLowerCase().trim()
+        );
+        if (match) {
+          updatedData.ticketId = match.ticketId;
+        }
+      }
+      return updatedData;
+    });
+  };
+
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
@@ -100,7 +170,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [activePicker]);
 
-  // Calendar Logic
   const calendarData = useMemo(() => {
     const year = calendarMonth.getFullYear();
     const month = calendarMonth.getMonth();
@@ -127,7 +196,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.clientName || !formData.assignedPerson || !formData.ticketId || !formData.kamName) {
-      alert("Please fill in all required fields, including KAM.");
+      alert("Please fill in all required fields. Ticket ID is required.");
       return;
     }
 
@@ -225,28 +294,46 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
               <label className="text-[10px] font-black text-slate-500 uppercase flex items-center tracking-wider">
                 <Hash size={11} className="mr-1.5" /> Ticket ID
               </label>
-              <input 
-                required
-                type="text" 
-                readOnly={!!bookingToEdit}
-                className={`w-full px-3 py-1.5 rounded-lg border border-slate-200 outline-none transition-all text-xs font-mono font-bold ${bookingToEdit ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10'}`}
-                value={formData.ticketId}
-                onChange={e => setFormData({...formData, ticketId: e.target.value})}
-              />
+              <div className="relative">
+                <input 
+                  required
+                  type="text" 
+                  readOnly={!!bookingToEdit}
+                  placeholder={isSheetLoading ? "Syncing ID database..." : "Enter or auto-fill ID"}
+                  className={`w-full px-3 py-1.5 rounded-lg border border-slate-200 outline-none transition-all text-xs font-mono font-bold ${bookingToEdit ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10'}`}
+                  value={formData.ticketId}
+                  onChange={e => setFormData({...formData, ticketId: e.target.value})}
+                />
+                {!bookingToEdit && isSheetLoading && (
+                  <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                    <Loader2 size={12} className="animate-spin text-blue-500" />
+                  </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1">
               <label className="text-[10px] font-black text-slate-500 uppercase flex items-center tracking-wider">
                 <Briefcase size={11} className="mr-1.5" /> Client Name
               </label>
-              <input 
-                required
-                type="text"
-                placeholder="Client/Company name"
-                className="w-full px-3 py-1.5 rounded-lg border border-slate-200 outline-none text-xs bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
-                value={formData.clientName}
-                onChange={e => setFormData({...formData, clientName: e.target.value})}
-              />
+              <div className="relative">
+                <input 
+                  required
+                  type="text"
+                  placeholder="Client/Company name"
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 outline-none text-xs bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
+                  value={formData.clientName}
+                  onChange={e => handleClientNameChange(e.target.value)}
+                />
+                {!bookingToEdit && !isSheetLoading && sheetMappings.length > 0 && (
+                   <div className="absolute right-2 top-1/2 -translate-y-1/2 group">
+                      <Database size={12} className="text-slate-300" />
+                      <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block bg-slate-800 text-white text-[9px] px-2 py-1 rounded whitespace-nowrap shadow-xl">
+                        Synced with Master Sheet
+                      </div>
+                   </div>
+                )}
+              </div>
             </div>
 
             <div className="space-y-1">
@@ -300,7 +387,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
               </select>
             </div>
 
-            {/* Submission Date with Custom Calendar */}
             <div className="space-y-1 relative">
               <label className="text-[10px] font-black text-slate-500 uppercase flex items-center tracking-wider">
                 <FileText size={11} className="mr-1.5" /> Submission Date
@@ -319,7 +405,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
               {activePicker === 'submission' && renderDatePicker('submission')}
             </div>
 
-            {/* Training Date with Custom Calendar */}
             <div className="space-y-1 relative">
               <label className="text-[10px] font-black text-slate-500 uppercase flex items-center tracking-wider">
                 <CalendarIcon size={11} className="mr-1.5" /> Training Date
