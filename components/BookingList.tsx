@@ -5,6 +5,7 @@ import {
   Search, 
   Plus, 
   Edit3,
+  Trash2,
   Clock,
   Briefcase,
   Package as PackageIcon,
@@ -14,20 +15,23 @@ import {
   Info,
   Calendar as CalendarIcon,
   X,
-  Filter
+  Filter,
+  AlertTriangle
 } from 'lucide-react';
 
 interface BookingListProps {
   bookings: TrainingBooking[];
   onAdd: () => void;
   onEdit: (booking: TrainingBooking) => void;
+  onDelete: (id: string) => void;
 }
 
-const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit }) => {
+const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const calendarRef = useRef<HTMLDivElement>(null);
 
   // Close calendar when clicking outside
@@ -104,6 +108,13 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit }) =>
   });
 
   const hasBookingsOnDate = (dateStr: string) => bookings.some(b => b.date === dateStr);
+
+  const confirmDelete = () => {
+    if (deleteConfirmId) {
+      onDelete(deleteConfirmId);
+      setDeleteConfirmId(null);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -296,12 +307,22 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit }) =>
                     </span>
                   </td>
                   <td className="px-6 py-4 text-right">
-                    <button 
-                      onClick={() => onEdit(booking)}
-                      className="p-2 text-slate-400 hover:bg-slate-900 hover:text-white rounded-lg transition-all"
-                    >
-                      <Edit3 size={18} />
-                    </button>
+                    <div className="flex items-center justify-end space-x-1">
+                      <button 
+                        onClick={() => onEdit(booking)}
+                        className="p-2 text-slate-400 hover:bg-slate-900 hover:text-white rounded-lg transition-all"
+                        title="Edit Booking"
+                      >
+                        <Edit3 size={18} />
+                      </button>
+                      <button 
+                        onClick={() => setDeleteConfirmId(booking.id)}
+                        className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"
+                        title="Delete Booking"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -328,6 +349,39 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit }) =>
           )}
         </div>
       </div>
+
+      {/* Delete Confirmation Modal */}
+      {deleteConfirmId && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200 border border-slate-200">
+            <div className="p-8 text-center">
+              <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-red-100 shadow-inner">
+                <AlertTriangle size={40} strokeWidth={2.5} />
+              </div>
+              <h3 className="text-xl font-black text-slate-800 tracking-tight mb-2">Confirm Deletion</h3>
+              <p className="text-slate-500 text-sm font-medium leading-relaxed">
+                Are you sure you want to remove this training record <span className="text-slate-900 font-bold">({deleteConfirmId})</span>? 
+                This action is irreversible and will remove all associated cloud data.
+              </p>
+            </div>
+            
+            <div className="p-6 bg-slate-50/50 border-t border-slate-100 grid grid-cols-2 gap-3">
+              <button 
+                onClick={() => setDeleteConfirmId(null)}
+                className="px-6 py-3 bg-white border border-slate-200 text-slate-600 font-bold text-xs uppercase tracking-widest rounded-2xl hover:bg-slate-100 transition-all shadow-sm"
+              >
+                No, Keep it
+              </button>
+              <button 
+                onClick={confirmDelete}
+                className="px-6 py-3 bg-red-600 text-white font-bold text-xs uppercase tracking-widest rounded-2xl hover:bg-red-700 transition-all shadow-lg shadow-red-600/20"
+              >
+                Yes, Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -111,14 +111,14 @@ const Settings: React.FC<SettingsProps> = ({
             className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'kams' ? 'bg-white text-blue-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
           >
             <UserCheck size={18} />
-            <span>KAM Master</span>
+            <span>KAM</span>
           </button>
           <button 
             onClick={() => setActiveTab('packages')}
             className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all text-sm font-bold ${activeTab === 'packages' ? 'bg-white text-blue-600 shadow-sm border border-slate-200' : 'text-slate-500 hover:bg-slate-100'}`}
           >
             <Package size={18} />
-            <span>Package Master</span>
+            <span>Package</span>
           </button>
         </div>
 
@@ -197,7 +197,7 @@ const Settings: React.FC<SettingsProps> = ({
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center space-x-3 text-slate-800">
                   <div className="p-2 bg-amber-100 text-amber-600 rounded-lg"><UserCheck size={20} /></div>
-                  <h3 className="text-lg font-bold">KAM Responsible Master</h3>
+                  <h3 className="text-lg font-bold">KAM</h3>
                 </div>
               </div>
 
@@ -250,7 +250,7 @@ const Settings: React.FC<SettingsProps> = ({
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center space-x-3 text-slate-800">
                   <div className="p-2 bg-purple-100 text-purple-600 rounded-lg"><Package size={20} /></div>
-                  <h3 className="text-lg font-bold">Training Package Master</h3>
+                  <h3 className="text-lg font-bold">Package</h3>
                 </div>
               </div>
 
