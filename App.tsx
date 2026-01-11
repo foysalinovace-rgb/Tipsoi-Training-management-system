@@ -7,7 +7,8 @@ import {
   Menu,
   CheckCircle,
   User as UserIcon,
-  Info
+  Info,
+  Loader2
 } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
@@ -20,20 +21,22 @@ import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import Settings from './components/Settings';
 import { TrainingBooking, User, UserRole, BookingStatus, SystemSettings } from './types';
-import { INITIAL_BOOKINGS, INITIAL_USERS } from './constants';
+import { INITIAL_USERS } from './constants';
+import { supabase } from './lib/supabase';
 
 const App: React.FC = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [currentUser, setCurrentUser] = useState<User | null>(null);
-  const [users, setUsers] = useState<User[]>(INITIAL_USERS);
+  const [users, setUsers] = useState<User[]>([]);
   const [activeTab, setActiveTab] = useState('dashboard');
-  const [bookings, setBookings] = useState<TrainingBooking[]>(INITIAL_BOOKINGS);
+  const [bookings, setBookings] = useState<TrainingBooking[]>([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedBookingForEdit, setSelectedBookingForEdit] = useState<TrainingBooking | null>(null);
   const [notifications, setNotifications] = useState<any[]>([]);
   const [showNotifications, setShowNotifications] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   
   const [kams, setKams] = useState<string[]>(['John Doe', 'Sarah Connor', 'Mike Tyson']);
   const [packages, setPackages] = useState<string[]>(['Essential', 'Standard', 'Premium', 'Custom Enterprise']);
@@ -42,6 +45,57 @@ const App: React.FC = () => {
     panelName: 'Tipsoi CST',
     logo: ''
   });
+
+  // Fetch initial data from Supabase
+  useEffect(() => {
+    const fetchData = async () => {
+      setIsLoading(true);
+      try {
+        // Fetch Bookings
+        const { data: bookingsData, error: bError } = await supabase
+          .from('bookings')
+          .select('*')
+          .order('date', { ascending: false });
+        
+        if (bookingsData) setBookings(bookingsData);
+        if (bError) console.error("Bookings Error:", bError);
+
+        // Fetch Users
+        const { data: usersData, error: uError } = await supabase
+          .from('users')
+          .select('*');
+        
+        if (usersData && usersData.length > 0) {
+          setUsers(usersData);
+        } else {
+          setUsers(INITIAL_USERS);
+        }
+        if (uError) console.error("Users Error:", uError);
+
+        // Fetch Settings
+        const { data: settingsData, error: sError } = await supabase
+          .from('settings')
+          .select('*')
+          .eq('id', 1)
+          .maybeSingle();
+        
+        if (settingsData) {
+          setSystemSettings({
+            panelName: settingsData.panelName,
+            logo: settingsData.logo
+          });
+        }
+        if (sError) console.error("Settings Error:", sError);
+
+      } catch (err) {
+        console.error("Critical error fetching from Supabase:", err);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, []);
 
   const addNotification = (message: string, type: 'info' | 'warning' | 'success') => {
     const newNotif = {
@@ -54,16 +108,91 @@ const App: React.FC = () => {
     setNotifications(prev => [newNotif, ...prev]);
   };
 
-  const handleBookingSubmit = (bookingData: TrainingBooking) => {
-    if (selectedBookingForEdit) {
-      setBookings(bookings.map(b => b.id === bookingData.id ? bookingData : b));
-      addNotification(`Booking ${bookingData.id} updated.`, 'info');
-    } else {
-      setBookings([bookingData, ...bookings]);
-      addNotification(`New training session created successfully.`, 'success');
+  const handleBookingSubmit = async (bookingData: TrainingBooking) => {
+    try {
+      if (selectedBookingForEdit) {
+        const { error } = await supabase
+          .from('bookings')
+          .update(bookingData)
+          .eq('id', bookingData.id);
+        
+        if (!error) {
+          setBookings(bookings.map(b => b.id === bookingData.id ? bookingData : b));
+          addNotification(`Booking ${bookingData.id} updated.`, 'info');
+        }
+      } else {
+        const { error } = await supabase
+          .from('bookings')
+          .insert([bookingData]);
+        
+        if (!error) {
+          setBookings([bookingData, ...bookings]);
+          addNotification(`New training session created successfully.`, 'success');
+        }
+      }
+    } catch (err) {
+      console.error("Supabase Booking Error:", err);
     }
     setActiveTab('bookings');
     setSelectedBookingForEdit(null);
+  };
+
+  const handleUserUpdate = async (updatedUser: User) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .update({
+          name: updatedUser.name,
+          email: updatedUser.email,
+          role: updatedUser.role,
+          avatar: updatedUser.avatar,
+          permissions: updatedUser.permissions,
+          password: updatedUser.password
+        })
+        .eq('id', updatedUser.id);
+      
+      if (!error) {
+        setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+        addNotification(`User ${updatedUser.name} information updated.`, 'success');
+        // Update current user if they updated themselves
+        if (currentUser && currentUser.id === updatedUser.id) {
+          setCurrentUser(updatedUser);
+        }
+      }
+    } catch (err) {
+      console.error("Supabase User Error:", err);
+    }
+  };
+
+  const handleAddUser = async (newUser: User) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .insert([newUser]);
+      
+      if (!error) {
+        setUsers([...users, newUser]);
+        addNotification(`User ${newUser.name} created.`, 'success');
+      }
+    } catch (err) {
+      console.error("Supabase Add User Error:", err);
+    }
+  };
+
+  const handleDeleteUser = async (userId: string) => {
+    try {
+      const { error } = await supabase
+        .from('users')
+        .delete()
+        .eq('id', userId);
+      
+      if (!error) {
+        setUsers(users.filter(u => u.id !== userId));
+        addNotification(`User removed from system.`, 'info');
+      }
+    } catch (err) {
+      console.error("Supabase Delete User Error:", err);
+    }
   };
 
   const handleOpenNewBooking = () => {
@@ -79,7 +208,6 @@ const App: React.FC = () => {
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     setIsLoggedIn(true);
-    // Automatically switch to the first available module they have access to
     const initialTab = user.permissions && user.permissions.length > 0 ? user.permissions[0] : 'dashboard';
     setActiveTab(initialTab);
     addNotification(`Welcome back, ${user.name}!`, 'info');
@@ -92,8 +220,6 @@ const App: React.FC = () => {
 
   const renderContent = () => {
     if (!currentUser) return null;
-
-    // Permissions check
     const hasAccess = (mod: string) => currentUser.permissions?.includes(mod);
 
     switch (activeTab) {
@@ -109,18 +235,23 @@ const App: React.FC = () => {
         return hasAccess('users') ? (
           <UserManagement 
               users={users} 
-              onAddUser={(newUser) => setUsers([...users, newUser])}
-              onUpdateUser={(updatedUser) => setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u))} 
-              onUpdateRole={(userId, newRole) => setUsers(users.map(u => u.id === userId ? { ...u, role: newRole } : u))} 
-              onUpdatePassword={(userId, newPassword) => setUsers(users.map(u => u.id === userId ? { ...u, password: newPassword } : u))}
-              onDeleteUser={(userId) => setUsers(users.filter(u => u.id !== userId))} 
+              onAddUser={handleAddUser}
+              onUpdateUser={handleUserUpdate} 
+              onUpdateRole={(userId, newRole) => handleUserUpdate(users.find(u => u.id === userId)!)} 
+              onUpdatePassword={(userId, newPassword) => handleUserUpdate({ ...users.find(u => u.id === userId)!, password: newPassword })}
+              onDeleteUser={handleDeleteUser} 
             />
         ) : <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs opacity-50">Access Denied</div>;
       case 'settings':
         return hasAccess('settings') ? (
           <Settings 
               settings={systemSettings} 
-              onUpdate={setSystemSettings}
+              onUpdate={async (newSettings) => {
+                const { error } = await supabase
+                  .from('settings')
+                  .upsert({ id: 1, panelName: newSettings.panelName, logo: newSettings.logo });
+                if (!error) setSystemSettings(newSettings);
+              }}
               kams={kams}
               onUpdateKams={setKams}
               packages={packages}
@@ -130,6 +261,17 @@ const App: React.FC = () => {
       default: return <div className="p-20 text-center text-slate-400 font-bold uppercase tracking-widest text-xs opacity-50">Coming Soon</div>;
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 size={40} className="text-blue-500 animate-spin mx-auto mb-4" />
+          <p className="text-white font-bold uppercase tracking-widest text-xs">Connecting to Supabase...</p>
+        </div>
+      </div>
+    );
+  }
 
   if (!isLoggedIn || !currentUser) {
     return <Login onLogin={handleLogin} users={users} />;
@@ -242,7 +384,7 @@ const App: React.FC = () => {
         isOpen={isProfileModalOpen} 
         onClose={() => setIsProfileModalOpen(false)} 
         user={currentUser} 
-        onUpdate={(u) => { setCurrentUser(u); setUsers(users.map(us => us.id === u.id ? u : us)); }} 
+        onUpdate={(u) => { setCurrentUser(u); handleUserUpdate(u); }} 
       />
     </div>
   );
