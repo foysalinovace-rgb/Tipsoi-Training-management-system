@@ -46,7 +46,7 @@ const App: React.FC = () => {
     logo: ''
   });
 
-  // 1. Session Restoration (Runs first)
+  // 1. Session Restoration Logic
   useEffect(() => {
     const savedUser = localStorage.getItem('tipsoi_user');
     if (savedUser) {
@@ -54,11 +54,10 @@ const App: React.FC = () => {
         const parsedUser = JSON.parse(savedUser);
         setCurrentUser(parsedUser);
         setIsLoggedIn(true);
-        // Set active tab based on saved session
         const savedTab = localStorage.getItem('active_tab') || 'dashboard';
         setActiveTab(savedTab);
       } catch (e) {
-        console.error("Failed to parse saved session", e);
+        console.error("Session restore failed:", e);
       }
     }
   }, []);
@@ -80,15 +79,21 @@ const App: React.FC = () => {
         .select('*');
       
       if (!uError && usersData && usersData.length > 0) {
-        setUsers(usersData);
-        // Sync current user data if logged in
+        // Ensure permissions are handled as array
+        const processedUsers = usersData.map(u => ({
+          ...u,
+          permissions: Array.isArray(u.permissions) ? u.permissions : []
+        }));
+        setUsers(processedUsers);
+        
+        // Sync session user
         const savedUser = localStorage.getItem('tipsoi_user');
         if (savedUser) {
           const parsed = JSON.parse(savedUser);
-          const freshUser = usersData.find(u => u.id === parsed.id);
-          if (freshUser) {
-            setCurrentUser(freshUser);
-            localStorage.setItem('tipsoi_user', JSON.stringify(freshUser));
+          const fresh = processedUsers.find(u => u.id === parsed.id);
+          if (fresh) {
+            setCurrentUser(fresh);
+            localStorage.setItem('tipsoi_user', JSON.stringify(fresh));
           }
         }
       } else {
@@ -109,7 +114,7 @@ const App: React.FC = () => {
         });
       }
     } catch (err) {
-      console.error("Sync Error:", err);
+      console.error("Global Fetch Error:", err);
     } finally {
       setIsLoading(false);
     }
@@ -119,11 +124,9 @@ const App: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  // Sync active tab to localStorage
+  // Tab Persistence
   useEffect(() => {
-    if (isLoggedIn) {
-      localStorage.setItem('active_tab', activeTab);
-    }
+    if (isLoggedIn) localStorage.setItem('active_tab', activeTab);
   }, [activeTab, isLoggedIn]);
 
   const addNotification = (message: string, type: 'info' | 'warning' | 'success') => {
@@ -139,27 +142,33 @@ const App: React.FC = () => {
 
   const handleBookingSubmit = async (bookingData: TrainingBooking) => {
     try {
+      let error;
       if (selectedBookingForEdit) {
-        const { error } = await supabase
+        const { error: err } = await supabase
           .from('bookings')
           .update(bookingData)
           .eq('id', bookingData.id);
-        
-        if (error) throw error;
-        setBookings(prev => prev.map(b => b.id === bookingData.id ? bookingData : b));
-        addNotification(`Booking ${bookingData.id} updated.`, 'info');
+        error = err;
       } else {
-        const { error } = await supabase
+        const { error: err } = await supabase
           .from('bookings')
           .insert([bookingData]);
-        
-        if (error) throw error;
+        error = err;
+      }
+      
+      if (error) throw error;
+      
+      // Update local state
+      if (selectedBookingForEdit) {
+        setBookings(prev => prev.map(b => b.id === bookingData.id ? bookingData : b));
+        addNotification(`Update successful.`, 'info');
+      } else {
         setBookings(prev => [bookingData, ...prev]);
-        addNotification(`New training session created successfully.`, 'success');
+        addNotification(`New record created.`, 'success');
       }
     } catch (err: any) {
-      console.error("Supabase Save Error:", err);
-      alert("Error: Data could not be saved to database. Check if you enabled RLS Policies in Supabase.");
+      console.error("Save Error:", err.message);
+      alert("Error saving data: " + err.message);
     }
     setIsBookingModalOpen(false);
     setSelectedBookingForEdit(null);
@@ -174,7 +183,7 @@ const App: React.FC = () => {
           email: updatedUser.email,
           role: updatedUser.role,
           avatar: updatedUser.avatar,
-          permissions: updatedUser.permissions,
+          permissions: updatedUser.permissions, // Supabase client handles array to JSONB
           password: updatedUser.password
         })
         .eq('id', updatedUser.id);
@@ -187,7 +196,7 @@ const App: React.FC = () => {
         localStorage.setItem('tipsoi_user', JSON.stringify(updatedUser));
       }
     } catch (err: any) {
-      console.error("User Update Error:", err);
+      console.error("User update failed:", err.message);
     }
   };
 
@@ -196,19 +205,9 @@ const App: React.FC = () => {
       const { error } = await supabase.from('users').insert([newUser]);
       if (error) throw error;
       setUsers(prev => [...prev, newUser]);
-      addNotification(`User ${newUser.name} created.`, 'success');
+      addNotification(`New user provisioned.`, 'success');
     } catch (err: any) {
-      console.error("Add User Error:", err);
-    }
-  };
-
-  const handleDeleteUser = async (userId: string) => {
-    try {
-      const { error } = await supabase.from('users').delete().eq('id', userId);
-      if (error) throw error;
-      setUsers(prev => prev.filter(u => u.id !== userId));
-    } catch (err: any) {
-      console.error("Delete User Error:", err);
+      console.error("Add user failed:", err.message);
     }
   };
 
@@ -218,68 +217,56 @@ const App: React.FC = () => {
     localStorage.setItem('tipsoi_user', JSON.stringify(user));
     const initialTab = user.permissions && user.permissions.length > 0 ? user.permissions[0] : 'dashboard';
     setActiveTab(initialTab);
-    addNotification(`Welcome back, ${user.name}!`, 'info');
+    addNotification(`Authentication successful.`, 'success');
   };
 
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
     localStorage.clear();
-    window.location.reload(); // Hard refresh to clear all states
+    window.location.reload(); 
   };
 
-  // Fix: Added the missing renderContent function to dynamically render modules based on the active tab
   const renderContent = () => {
     switch (activeTab) {
-      case 'dashboard':
-        return <Dashboard bookings={bookings} users={users} />;
-      case 'bookings':
-        return (
-          <BookingList 
-            bookings={bookings} 
-            onAdd={() => { setSelectedBookingForEdit(null); setIsBookingModalOpen(true); }}
-            onEdit={(booking) => { setSelectedBookingForEdit(booking); setIsBookingModalOpen(true); }}
-          />
-        );
-      case 'reports':
-        return <ReportModule bookings={bookings} />;
-      case 'analytics':
-        return <Analytics bookings={bookings} users={users} />;
-      case 'users':
-        return (
-          <UserManagement 
-            users={users} 
-            onAddUser={handleAddUser}
-            onUpdateUser={handleUserUpdate}
-            onUpdateRole={(userId, newRole) => {
-              const user = users.find(u => u.id === userId);
-              if (user) handleUserUpdate({ ...user, role: newRole });
-            }}
-            onUpdatePassword={(userId, newPassword) => {
-              const user = users.find(u => u.id === userId);
-              if (user) handleUserUpdate({ ...user, password: newPassword });
-            }}
-            onDeleteUser={handleDeleteUser}
-          />
-        );
-      case 'settings':
-        return (
-          <Settings 
-            settings={systemSettings} 
-            onUpdate={(s) => {
-              setSystemSettings(s);
-              supabase.from('settings').update(s).eq('id', 1).then(({ error }) => {
-                if (!error) addNotification('System branding updated.', 'success');
-              });
-            }} 
-            kams={kams}
-            onUpdateKams={(k) => setKams(k)}
-            packages={packages}
-            onUpdatePackages={(p) => setPackages(p)}
-          />
-        );
-      default:
-        return <Dashboard bookings={bookings} users={users} />;
+      case 'dashboard': return <Dashboard bookings={bookings} users={users} />;
+      case 'bookings': return (
+        <BookingList 
+          bookings={bookings} 
+          onAdd={() => { setSelectedBookingForEdit(null); setIsBookingModalOpen(true); }}
+          onEdit={(booking) => { setSelectedBookingForEdit(booking); setIsBookingModalOpen(true); }}
+        />
+      );
+      case 'reports': return <ReportModule bookings={bookings} />;
+      case 'analytics': return <Analytics bookings={bookings} users={users} />;
+      case 'users': return (
+        <UserManagement 
+          users={users} 
+          onAddUser={handleAddUser}
+          onUpdateUser={handleUserUpdate}
+          onUpdateRole={(id, role) => { const u = users.find(x => x.id === id); if(u) handleUserUpdate({...u, role}); }}
+          onUpdatePassword={(id, pw) => { const u = users.find(x => x.id === id); if(u) handleUserUpdate({...u, password: pw}); }}
+          onDeleteUser={async (id) => { 
+            const { error } = await supabase.from('users').delete().eq('id', id);
+            if (!error) setUsers(prev => prev.filter(u => u.id !== id));
+          }}
+        />
+      );
+      case 'settings': return (
+        <Settings 
+          settings={systemSettings} 
+          onUpdate={async (s) => {
+            setSystemSettings(s);
+            const { error } = await supabase.from('settings').upsert({ id: 1, ...s });
+            if (!error) addNotification('Branding updated.', 'success');
+          }} 
+          kams={kams}
+          onUpdateKams={setKams}
+          packages={packages}
+          onUpdatePackages={setPackages}
+        />
+      );
+      default: return <Dashboard bookings={bookings} users={users} />;
     }
   };
 
@@ -288,7 +275,7 @@ const App: React.FC = () => {
       <div className="min-h-screen bg-slate-900 flex items-center justify-center">
         <div className="text-center">
           <Loader2 size={40} className="text-blue-500 animate-spin mx-auto mb-4" />
-          <p className="text-white font-bold uppercase tracking-widest text-xs">Syncing with Tipsoi Cloud...</p>
+          <p className="text-white font-bold uppercase tracking-widest text-[10px]">Synchronizing Cloud Data...</p>
         </div>
       </div>
     );
@@ -311,7 +298,7 @@ const App: React.FC = () => {
       <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
         <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-30 shadow-sm">
           <div className="flex items-center space-x-4">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors">
+            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
               <Menu size={20} />
             </button>
             <div className="hidden lg:flex items-center space-x-2 text-slate-800 font-bold tracking-tight">
@@ -334,7 +321,7 @@ const App: React.FC = () => {
               {showNotifications && (
                 <div className="absolute right-0 mt-3 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
                   <div className="px-4 py-3 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
-                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Notifications</h4>
+                    <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Notifications</h4>
                     <button onClick={() => setNotifications([])} className="text-[10px] font-bold text-blue-600 hover:underline">Clear</button>
                   </div>
                   <div className="max-h-96 overflow-y-auto custom-scrollbar">
@@ -366,7 +353,7 @@ const App: React.FC = () => {
                 <p className="text-[11px] font-black text-slate-800 leading-none">{currentUser.name}</p>
                 <p className="text-[9px] font-bold text-blue-600 uppercase mt-1">{currentUser.role.replace('_', ' ')}</p>
               </div>
-              <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-500 border border-slate-200 overflow-hidden">
+              <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center font-bold text-slate-500 border border-slate-200 overflow-hidden uppercase">
                 {currentUser.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" /> : currentUser.name.charAt(0)}
               </div>
             </div>
@@ -377,7 +364,7 @@ const App: React.FC = () => {
 
         <footer className="mt-auto border-t border-slate-200 p-4 bg-white flex justify-between text-[10px] text-slate-400 font-bold uppercase tracking-widest">
           <span>&copy; 2026 {systemSettings.panelName}</span>
-          <span className="flex items-center text-green-500"><CheckCircle size={10} className="mr-1" /> Database Connected</span>
+          <span className="flex items-center text-green-500"><CheckCircle size={10} className="mr-1" /> SQL DB Connection Established</span>
         </footer>
       </main>
 
