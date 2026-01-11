@@ -143,7 +143,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
       <div className="flex justify-between items-end">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Executive Summary</h2>
-          <p className="text-slate-500 text-sm font-medium">Real-time training metrics and future roadmap</p>
+          <p className="text-slate-500 text-sm font-medium">Real-time training metrics and team status</p>
         </div>
         <div className="flex space-x-2">
           <button onClick={handleExportPDF} disabled={isExporting} className="inline-flex items-center px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 disabled:opacity-50 shadow-sm transition-all">
@@ -175,46 +175,55 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Real-time Occupancy (MOVED TO LEFT) */}
-        <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col h-fit">
-          <div className="p-5 border-b border-slate-100 bg-slate-50/30 flex items-center space-x-3">
-            <div className="p-2 bg-orange-500 text-white rounded-lg shadow-lg shadow-orange-500/20">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        {/* Real-time Occupancy - FIXED LEFT COLUMN */}
+        <div className="lg:col-span-4 xl:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col sticky top-20">
+          <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center space-x-3">
+            <div className="p-2 bg-slate-900 text-white rounded-lg shadow-lg">
               <ShieldAlert size={18} />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-slate-800">Occupancy Real-Time</h3>
-              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Today's Active Personnel</p>
+              <h3 className="text-base font-bold text-slate-800">Occupancy Real-Time</h3>
+              <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Active Personnel Monitor</p>
             </div>
           </div>
-          <div className="p-0 overflow-y-auto max-h-[850px] custom-scrollbar">
+          <div className="p-0 overflow-y-auto max-h-[calc(100vh-320px)] custom-scrollbar">
             <div className="divide-y divide-slate-100">
               {trainerOccupancy.map((trainer, idx) => (
-                <div key={idx} className="p-5 hover:bg-slate-50/50 transition-colors">
+                <div key={idx} className={`p-5 hover:bg-slate-50 transition-colors ${trainer.isOccupied ? 'bg-blue-50/20' : ''}`}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
-                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-bold text-xs ${trainer.isOccupied ? 'bg-orange-100 text-orange-600' : 'bg-green-100 text-green-600'}`}>
-                        {trainer.isOccupied ? <Clock size={18} /> : <CircleUser size={18} />}
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${trainer.isOccupied ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                        {trainer.name.charAt(0)}
                       </div>
                       <div>
-                        <h4 className="text-sm font-bold text-slate-800">{trainer.name}</h4>
-                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest">{trainer.role.replace('_', ' ')}</p>
+                        <h4 className="text-sm font-bold text-slate-800 leading-tight">{trainer.name}</h4>
+                        <p className="text-[9px] text-slate-400 font-black uppercase tracking-widest mt-0.5">{trainer.role.replace('_', ' ')}</p>
                       </div>
                     </div>
-                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase tracking-wider border ${trainer.isOccupied ? 'bg-orange-50 text-orange-700 border-orange-100' : 'bg-green-50 text-green-700 border-green-100'}`}>
-                      {trainer.isOccupied ? 'Occupied' : 'Available'}
-                    </span>
                   </div>
                   
+                  <div className="flex items-center justify-between">
+                     <span className={`px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider border ${trainer.isOccupied ? 'bg-blue-100 text-blue-700 border-blue-200' : 'bg-slate-50 text-slate-400 border-slate-200'}`}>
+                      {trainer.isOccupied ? 'On Training' : 'Available'}
+                    </span>
+                    {trainer.isOccupied && (
+                      <div className="flex items-center text-blue-600">
+                        <Clock size={12} className="mr-1" />
+                        <span className="text-[10px] font-bold">Active</span>
+                      </div>
+                    )}
+                  </div>
+
                   {trainer.isOccupied && (
-                    <div className="mt-3 space-y-2 pl-12 border-l-2 border-orange-100 ml-4">
+                    <div className="mt-4 space-y-2">
                       {trainer.occupiedSlots.map((slot, sIdx) => (
-                        <div key={sIdx} className="bg-white p-3 rounded-xl border border-slate-100 flex justify-between items-center shadow-sm">
-                          <div className="max-w-[120px]">
-                            <p className="text-[10px] font-bold text-slate-700 truncate">{slot.title}</p>
+                        <div key={sIdx} className="bg-white p-3 rounded-xl border border-blue-100 flex flex-col space-y-1 shadow-sm">
+                          <p className="text-[10px] font-black text-slate-800 uppercase leading-none">{slot.title}</p>
+                          <div className="flex justify-between items-center">
                             <p className="text-[9px] text-slate-400 font-bold">{slot.time}</p>
+                            <CountdownTimer startTime={slot.time} duration={slot.duration} date={slot.date} />
                           </div>
-                          <CountdownTimer startTime={slot.time} duration={slot.duration} date={slot.date} />
                         </div>
                       ))}
                     </div>
@@ -225,39 +234,39 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
           </div>
         </div>
 
-        {/* Training Lists (MOVED TO RIGHT) */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Training Lists - RIGHT CONTENT AREA */}
+        <div className="lg:col-span-8 xl:col-span-9 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-            <div className="p-5 border-b border-slate-100 bg-amber-50/30 flex items-center justify-between">
+            <div className="p-5 border-b border-slate-100 bg-amber-50/20 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <div className="p-2 bg-amber-500 text-white rounded-lg shadow-lg shadow-amber-500/20">
                   <Clock size={18} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800">Today's Training Schedule</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Active commitments for {new Date().toLocaleDateString()}</p>
+                  <h3 className="text-lg font-bold text-slate-800">Today's Active Schedule</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">{new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' })}</p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black uppercase">
-                {todayTrainings.length} Total
+              <span className="px-3 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black uppercase">
+                {todayTrainings.length} Active Sessions
               </span>
             </div>
-            <div className="p-0 flex-1 overflow-y-auto max-h-[400px] custom-scrollbar">
+            <div className="p-0 flex-1 overflow-y-auto max-h-[450px] custom-scrollbar">
               {todayTrainings.length > 0 ? (
                 <div className="divide-y divide-slate-100">
                   {todayTrainings.map((training) => (
                     <div key={training.id} className="p-5 hover:bg-slate-50 transition-colors flex justify-between items-center group">
                       <div className="flex items-start space-x-4">
-                        <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-amber-50 group-hover:text-amber-600 transition-colors">
-                          <Building2 size={22} />
+                        <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-blue-600 group-hover:shadow-sm border border-transparent group-hover:border-slate-100 transition-all">
+                          <Building2 size={24} />
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
-                            <h4 className="font-bold text-slate-800">{training.title}</h4>
-                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded border bg-amber-50 text-amber-600 border-amber-100">LIVE TODAY</span>
+                            <h4 className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{training.title}</h4>
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-100 uppercase tracking-tighter">In Progress</span>
                           </div>
-                          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                            {training.clientName} <span className="mx-1 text-slate-300">•</span> {training.startTime} <span className="mx-1 text-slate-300">•</span> {training.assignedPerson}
+                          <p className="text-xs text-slate-500 font-semibold mt-1">
+                            {training.clientName} <span className="mx-2 text-slate-300">|</span> <span className="text-slate-800 font-bold">{training.startTime}</span> <span className="mx-2 text-slate-300">|</span> {training.assignedPerson}
                           </p>
                         </div>
                       </div>
@@ -266,11 +275,12 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
                   ))}
                 </div>
               ) : (
-                <div className="p-12 text-center flex flex-col items-center">
-                  <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100">
-                    <CheckCircle2 size={24} className="text-slate-200" />
+                <div className="p-16 text-center flex flex-col items-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
+                    <CheckCircle2 size={32} className="text-slate-200" />
                   </div>
-                  <h4 className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No Active Sessions Today</h4>
+                  <h4 className="text-slate-800 font-bold uppercase tracking-widest text-sm">Clear Schedule</h4>
+                  <p className="text-slate-400 text-xs mt-1">No active training sessions for today.</p>
                 </div>
               )}
             </div>
@@ -283,45 +293,49 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
                   <Calendar size={18} />
                 </div>
                 <div>
-                  <h3 className="text-lg font-bold text-slate-800">Upcoming Training Schedule</h3>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Future Roadmap & Pipeline</p>
+                  <h3 className="text-lg font-bold text-slate-800">Upcoming Roadmaps</h3>
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Future commitments & pipeline</p>
                 </div>
               </div>
-              <span className="px-2.5 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase">
-                {upcomingTrainings.length} Planned
+              <span className="px-3 py-1 bg-blue-50 text-blue-600 rounded-lg text-[10px] font-black uppercase">
+                {upcomingTrainings.length} Planned Sessions
               </span>
             </div>
-            <div className="p-0 flex-1 overflow-y-auto max-h-[400px] custom-scrollbar">
+            <div className="p-0 flex-1 overflow-y-auto max-h-[450px] custom-scrollbar">
               {upcomingTrainings.length > 0 ? (
                 <div className="divide-y divide-slate-100">
                   {upcomingTrainings.map((training) => (
                     <div key={training.id} className="p-5 hover:bg-slate-50 transition-colors flex justify-between items-center group">
                       <div className="flex items-start space-x-4">
-                        <div className="w-12 h-12 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-blue-50 group-hover:text-blue-600 transition-colors">
-                          <Building2 size={22} />
+                        <div className="w-12 h-12 bg-slate-50 rounded-xl flex items-center justify-center text-slate-400 group-hover:bg-white group-hover:text-blue-600 group-hover:shadow-sm border border-transparent group-hover:border-slate-100 transition-all">
+                          <Building2 size={24} />
                         </div>
                         <div>
                           <div className="flex items-center space-x-2">
-                            <h4 className="font-bold text-slate-800">{training.title}</h4>
-                            <span className="text-[9px] font-black px-1.5 py-0.5 rounded border bg-slate-50 text-slate-400 border-slate-100">
+                            <h4 className="font-bold text-slate-800 group-hover:text-blue-600 transition-colors">{training.title}</h4>
+                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full border bg-slate-50 text-slate-400 border-slate-200 uppercase tracking-tighter">
                               {training.date}
                             </span>
                           </div>
-                          <p className="text-xs text-slate-500 font-semibold mt-0.5">
-                            {training.clientName} <span className="mx-1 text-slate-300">•</span> {training.startTime} <span className="mx-1 text-slate-300">•</span> {training.assignedPerson}
+                          <p className="text-xs text-slate-500 font-semibold mt-1">
+                            {training.clientName} <span className="mx-2 text-slate-300">|</span> <span className="text-slate-800 font-bold">{training.startTime}</span> <span className="mx-2 text-slate-300">|</span> {training.assignedPerson}
                           </p>
                         </div>
                       </div>
-                      <CountdownTimer startTime={training.startTime} duration={training.duration} date={training.date} />
+                      <div className="flex flex-col items-end">
+                        <span className="text-[9px] font-black uppercase text-slate-400 tracking-tighter">Scheduled</span>
+                        <span className="text-xs font-bold text-slate-600">{training.date}</span>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="p-12 text-center flex flex-col items-center">
-                  <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100">
-                    <Calendar size={24} className="text-slate-200" />
+                <div className="p-16 text-center flex flex-col items-center">
+                  <div className="w-16 h-16 bg-slate-50 rounded-2xl flex items-center justify-center mb-4 border border-slate-100">
+                    <Calendar size={32} className="text-slate-200" />
                   </div>
-                  <h4 className="text-slate-400 font-bold uppercase tracking-widest text-[10px]">No Future Sessions Planned</h4>
+                  <h4 className="text-slate-800 font-bold uppercase tracking-widest text-sm">Empty Pipeline</h4>
+                  <p className="text-slate-400 text-xs mt-1">No future training sessions planned currently.</p>
                 </div>
               )}
             </div>
