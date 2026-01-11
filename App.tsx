@@ -46,6 +46,16 @@ const App: React.FC = () => {
     logo: ''
   });
 
+  // Check for existing session in localStorage on mount
+  useEffect(() => {
+    const savedUser = localStorage.getItem('tipsoi_user');
+    if (savedUser) {
+      const parsedUser = JSON.parse(savedUser);
+      setCurrentUser(parsedUser);
+      setIsLoggedIn(true);
+    }
+  }, []);
+
   // Fetch initial data from Supabase
   useEffect(() => {
     const fetchData = async () => {
@@ -58,7 +68,7 @@ const App: React.FC = () => {
           .order('date', { ascending: false });
         
         if (bookingsData) setBookings(bookingsData);
-        if (bError) console.error("Bookings Error:", bError);
+        if (bError) console.error("Bookings Fetch Error:", bError);
 
         // Fetch Users
         const { data: usersData, error: uError } = await supabase
@@ -70,7 +80,7 @@ const App: React.FC = () => {
         } else {
           setUsers(INITIAL_USERS);
         }
-        if (uError) console.error("Users Error:", uError);
+        if (uError) console.error("Users Fetch Error:", uError);
 
         // Fetch Settings
         const { data: settingsData, error: sError } = await supabase
@@ -85,7 +95,7 @@ const App: React.FC = () => {
             logo: settingsData.logo
           });
         }
-        if (sError) console.error("Settings Error:", sError);
+        if (sError) console.error("Settings Fetch Error:", sError);
 
       } catch (err) {
         console.error("Critical error fetching from Supabase:", err);
@@ -116,24 +126,23 @@ const App: React.FC = () => {
           .update(bookingData)
           .eq('id', bookingData.id);
         
-        if (!error) {
-          setBookings(bookings.map(b => b.id === bookingData.id ? bookingData : b));
-          addNotification(`Booking ${bookingData.id} updated.`, 'info');
-        }
+        if (error) throw error;
+        setBookings(bookings.map(b => b.id === bookingData.id ? bookingData : b));
+        addNotification(`Booking ${bookingData.id} updated.`, 'info');
       } else {
         const { error } = await supabase
           .from('bookings')
           .insert([bookingData]);
         
-        if (!error) {
-          setBookings([bookingData, ...bookings]);
-          addNotification(`New training session created successfully.`, 'success');
-        }
+        if (error) throw error;
+        setBookings([bookingData, ...bookings]);
+        addNotification(`New training session created successfully.`, 'success');
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Supabase Booking Error:", err);
+      alert(`Error saving booking: ${err.message}. Ensure you ran the SQL scripts to disable RLS.`);
     }
-    setActiveTab('bookings');
+    setIsBookingModalOpen(false);
     setSelectedBookingForEdit(null);
   };
 
@@ -151,16 +160,17 @@ const App: React.FC = () => {
         })
         .eq('id', updatedUser.id);
       
-      if (!error) {
-        setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
-        addNotification(`User ${updatedUser.name} information updated.`, 'success');
-        // Update current user if they updated themselves
-        if (currentUser && currentUser.id === updatedUser.id) {
-          setCurrentUser(updatedUser);
-        }
+      if (error) throw error;
+      setUsers(users.map(u => u.id === updatedUser.id ? updatedUser : u));
+      addNotification(`User ${updatedUser.name} information updated.`, 'success');
+      
+      if (currentUser && currentUser.id === updatedUser.id) {
+        setCurrentUser(updatedUser);
+        localStorage.setItem('tipsoi_user', JSON.stringify(updatedUser));
       }
-    } catch (err) {
-      console.error("Supabase User Error:", err);
+    } catch (err: any) {
+      console.error("Supabase User Update Error:", err);
+      alert(`Error updating user: ${err.message}`);
     }
   };
 
@@ -170,12 +180,12 @@ const App: React.FC = () => {
         .from('users')
         .insert([newUser]);
       
-      if (!error) {
-        setUsers([...users, newUser]);
-        addNotification(`User ${newUser.name} created.`, 'success');
-      }
-    } catch (err) {
+      if (error) throw error;
+      setUsers([...users, newUser]);
+      addNotification(`User ${newUser.name} created.`, 'success');
+    } catch (err: any) {
       console.error("Supabase Add User Error:", err);
+      alert(`Error adding user: ${err.message}`);
     }
   };
 
@@ -186,11 +196,10 @@ const App: React.FC = () => {
         .delete()
         .eq('id', userId);
       
-      if (!error) {
-        setUsers(users.filter(u => u.id !== userId));
-        addNotification(`User removed from system.`, 'info');
-      }
-    } catch (err) {
+      if (error) throw error;
+      setUsers(users.filter(u => u.id !== userId));
+      addNotification(`User removed from system.`, 'info');
+    } catch (err: any) {
       console.error("Supabase Delete User Error:", err);
     }
   };
@@ -208,6 +217,7 @@ const App: React.FC = () => {
   const handleLogin = (user: User) => {
     setCurrentUser(user);
     setIsLoggedIn(true);
+    localStorage.setItem('tipsoi_user', JSON.stringify(user));
     const initialTab = user.permissions && user.permissions.length > 0 ? user.permissions[0] : 'dashboard';
     setActiveTab(initialTab);
     addNotification(`Welcome back, ${user.name}!`, 'info');
@@ -216,6 +226,7 @@ const App: React.FC = () => {
   const handleLogout = () => {
     setIsLoggedIn(false);
     setCurrentUser(null);
+    localStorage.removeItem('tipsoi_user');
   };
 
   const renderContent = () => {
