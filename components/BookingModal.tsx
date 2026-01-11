@@ -33,15 +33,25 @@ interface SheetMapping {
   ticketId: string;
 }
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, bookingToEdit, users, kams, packages }) => {
+  const localToday = getLocalDateString();
+  
   const [formData, setFormData] = useState({
     ticketId: '',
     clientName: '',
     assignedPerson: '',
     kamName: '',
     package: '',
-    manpowerSubmissionDate: new Date().toISOString().split('T')[0],
-    date: new Date().toISOString().split('T')[0],
+    manpowerSubmissionDate: localToday,
+    date: localToday,
     startTime: '09:00',
     status: BookingStatus.TODO,
     notes: '',
@@ -64,7 +74,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
       const fetchSheetData = async () => {
         setIsSheetLoading(true);
         try {
-          // Public CSV Export URL for the provided Sheet
           const sheetId = '1l8B6jdStatgm0sItoFHMHoQTNh7n5VjnuvNDVMR4d3A';
           const gid = '128281966';
           const url = `https://docs.google.com/spreadsheets/d/${sheetId}/export?format=csv&gid=${gid}`;
@@ -72,19 +81,12 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
           const response = await fetch(url);
           const csvText = await response.text();
           
-          // Basic CSV parsing logic
           const lines = csvText.split(/\r?\n/);
           const mappings: SheetMapping[] = [];
           
-          // Skip header row
           for (let i = 1; i < lines.length; i++) {
             if (!lines[i]) continue;
-            
-            // Split by comma but handle commas inside quotes
             const columns = lines[i].split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/);
-            
-            // Column D (index 3) is Ticket ID
-            // Column F (index 5) is Client Name
             const ticketId = columns[3]?.replace(/^"|"$/g, '').trim();
             const clientName = columns[5]?.replace(/^"|"$/g, '').trim();
             
@@ -124,17 +126,18 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
           location: bookingToEdit.location,
         });
       } else {
+        const today = getLocalDateString();
         setFormData(prev => ({ 
           ...prev, 
-          ticketId: '', // Start empty to allow auto-fill
+          ticketId: '', 
           clientName: '',
           assignedPerson: users.length > 0 ? users[0].name : '',
           kamName: kams.length > 0 ? kams[0] : '',
           package: packages.length > 0 ? packages[0] : '',
           status: BookingStatus.TODO,
           notes: '',
-          date: new Date().toISOString().split('T')[0],
-          manpowerSubmissionDate: new Date().toISOString().split('T')[0]
+          date: today,
+          manpowerSubmissionDate: today
         }));
       }
     }
@@ -144,8 +147,6 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
   const handleClientNameChange = (val: string) => {
     setFormData(prev => {
       const updatedData = { ...prev, clientName: val };
-      
-      // If we're not editing an existing record, check for master sheet match
       if (!bookingToEdit && sheetMappings.length > 0) {
         const match = sheetMappings.find(
           m => m.clientName.toLowerCase() === val.toLowerCase().trim()
@@ -263,7 +264,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
                   }`}
                 >
                   {data.day}
-                  {data.dateStr === new Date().toISOString().split('T')[0] && (
+                  {data.dateStr === getLocalDateString() && (
                     <span className={`absolute bottom-0.5 w-0.5 h-0.5 rounded-full ${selectedDate === data.dateStr ? 'bg-white' : 'bg-blue-400'}`}></span>
                   )}
                 </button>

@@ -9,6 +9,14 @@ interface DashboardProps {
   users: UserType[];
 }
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const CountdownTimer: React.FC<{ startTime: string; duration: number; date: string }> = ({ startTime, duration, date }) => {
   const [timeLeft, setTimeLeft] = useState<string>('');
   const [statusLabel, setStatusLabel] = useState<string>('Upcoming');
@@ -25,15 +33,12 @@ const CountdownTimer: React.FC<{ startTime: string; duration: number; date: stri
       
       let diff = 0;
       if (now < sessionStart) {
-        // Upcoming
         diff = sessionStart.getTime() - now.getTime();
         setStatusLabel('Starts in');
       } else if (now < sessionEnd) {
-        // Ongoing
         diff = sessionEnd.getTime() - now.getTime();
         setStatusLabel('Ends in');
       } else {
-        // Completed
         setTimeLeft('Completed');
         setStatusLabel('Status');
         clearInterval(timer);
@@ -65,7 +70,7 @@ const CountdownTimer: React.FC<{ startTime: string; duration: number; date: stri
 const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
-  const todayStr = new Date().toISOString().split('T')[0];
+  const todayStr = getLocalDateString();
   
   const todayTrainings = useMemo(() => {
     return bookings
@@ -140,10 +145,17 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
 
   return (
     <div className={`space-y-6 transition-opacity duration-300 ${isRefreshing ? 'opacity-60 pointer-events-none' : 'opacity-100'}`}>
-      <div className="flex justify-between items-end">
-        <div>
-          <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Executive Summary</h2>
-          <p className="text-slate-500 text-sm font-medium">Real-time training metrics and team status</p>
+      <div className="flex justify-between items-start">
+        <div className="flex flex-col">
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight leading-none mb-1">Executive Summary</h2>
+          <div className="flex flex-col mt-1">
+             <span className="text-blue-600 font-bold text-sm">
+                {new Date().toLocaleDateString('en-US', { day: 'numeric', month: 'long', year: 'numeric' })}
+             </span>
+             <span className="text-slate-400 text-[10px] font-black uppercase tracking-[0.2em] mt-0.5">
+                {new Date().toLocaleDateString('en-US', { weekday: 'long' })}
+             </span>
+          </div>
         </div>
         <div className="flex space-x-2">
           <button onClick={handleExportPDF} disabled={isExporting} className="inline-flex items-center px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-xs font-bold uppercase tracking-widest text-slate-600 hover:bg-slate-50 disabled:opacity-50 shadow-sm transition-all">
@@ -176,7 +188,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Real-time Occupancy - FIXED LEFT COLUMN */}
+        {/* Real-time Occupancy */}
         <div className="lg:col-span-4 xl:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col sticky top-20">
           <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center space-x-3">
             <div className="p-2 bg-slate-900 text-white rounded-lg shadow-lg">
@@ -234,7 +246,6 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
           </div>
         </div>
 
-        {/* Training Lists - RIGHT CONTENT AREA */}
         <div className="lg:col-span-8 xl:col-span-9 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
             <div className="p-5 border-b border-slate-100 bg-amber-50/20 flex items-center justify-between">

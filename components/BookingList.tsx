@@ -26,9 +26,17 @@ interface BookingListProps {
   onDelete: (id: string) => void;
 }
 
+const getLocalDateString = () => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
@@ -210,7 +218,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                 <div className="mt-4 pt-3 border-t border-slate-100 flex justify-between">
                   <button 
                     onClick={() => {
-                      setSelectedDate(new Date().toISOString().split('T')[0]);
+                      setSelectedDate(getLocalDateString());
                       setIsCalendarOpen(false);
                     }}
                     className="text-[10px] font-black uppercase text-blue-600 hover:underline"
@@ -340,7 +348,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                 Use the calendar filter above to explore other dates.
               </p>
               <button 
-                onClick={() => setSelectedDate(new Date().toISOString().split('T')[0])}
+                onClick={() => setSelectedDate(getLocalDateString())}
                 className="mt-6 text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline"
               >
                 Return to Today
