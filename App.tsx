@@ -2,12 +2,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Bell, 
-  Search, 
-  ChevronDown, 
   Menu,
-  CheckCircle,
-  User as UserIcon,
-  Info,
   Loader2
 } from 'lucide-react';
 import Sidebar from './components/Sidebar';
@@ -20,7 +15,7 @@ import ProfileModal from './components/ProfileModal';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import Settings from './components/Settings';
-import { TrainingBooking, User, UserRole, BookingStatus, SystemSettings } from './types';
+import { TrainingBooking, User, SystemSettings } from './types';
 import { INITIAL_USERS } from './constants';
 import { supabase } from './lib/supabase';
 
@@ -30,7 +25,6 @@ const STORAGE_KEYS = {
 };
 
 const App: React.FC = () => {
-  // 1. Initial State
   const [currentUser, setCurrentUser] = useState<User | null>(() => {
     const saved = localStorage.getItem(STORAGE_KEYS.USER);
     try { return saved ? JSON.parse(saved) : null; } catch { return null; }
@@ -46,7 +40,10 @@ const App: React.FC = () => {
 
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [bookings, setBookings] = useState<TrainingBooking[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
+  // Set initial sidebar state based on screen width
+  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedBookingForEdit, setSelectedBookingForEdit] = useState<TrainingBooking | null>(null);
@@ -62,14 +59,12 @@ const App: React.FC = () => {
     logo: ''
   });
 
-  // 2. Tab Persistence
   useEffect(() => {
     if (isLoggedIn) {
       localStorage.setItem(STORAGE_KEYS.TAB, activeTab);
     }
   }, [activeTab, isLoggedIn]);
 
-  // 3. Notification Helper
   const addNotification = (message: string, type: 'info' | 'warning' | 'success') => {
     const newNotif = {
       id: Date.now(),
@@ -81,27 +76,22 @@ const App: React.FC = () => {
     setNotifications(prev => [newNotif, ...prev]);
   };
 
-  // 4. Data Fetching
   const fetchData = useCallback(async () => {
     try {
-      // Fetch Bookings
       const { data: bookingsData } = await supabase.from('bookings').select('*').order('date', { ascending: false });
       if (bookingsData) setBookings(bookingsData);
 
-      // Fetch Users
       const { data: usersData } = await supabase.from('users').select('*');
       if (usersData) {
         setUsers(usersData.map(u => ({ ...u, permissions: Array.isArray(u.permissions) ? u.permissions : [] })));
       }
 
-      // Fetch Master Data (KAM and Packages)
       const { data: kamsData } = await supabase.from('kams').select('name').order('name');
       if (kamsData) setKams(kamsData.map(k => k.name));
 
       const { data: pkgsData } = await supabase.from('packages').select('name').order('name');
       if (pkgsData) setPackages(pkgsData.map(p => p.name));
 
-      // Fetch Settings
       const { data: settingsData } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
       if (settingsData) setSystemSettings({ panelName: settingsData.panelName, logo: settingsData.logo });
 
@@ -116,7 +106,6 @@ const App: React.FC = () => {
     fetchData();
   }, [fetchData]);
 
-  // 5. Action Handlers for Bookings
   const handleBookingSubmit = async (bookingData: TrainingBooking) => {
     try {
       const { error } = selectedBookingForEdit 
@@ -124,7 +113,7 @@ const App: React.FC = () => {
         : await supabase.from('bookings').insert([bookingData]);
       
       if (error) throw error;
-      fetchData(); // Refresh all
+      fetchData();
       addNotification(`Booking ${selectedBookingForEdit ? 'updated' : 'created'}.`, 'success');
     } catch (err: any) { alert(err.message); }
     setIsBookingModalOpen(false);
@@ -140,7 +129,6 @@ const App: React.FC = () => {
     } catch (err: any) { alert(err.message); }
   };
 
-  // 6. Master Data Handlers (Settings)
   const handleUpdateKams = async (newKamList: string[]) => {
     try {
       if (newKamList.length > kams.length) {
@@ -172,7 +160,6 @@ const App: React.FC = () => {
       await supabase.from('users').update(updatedUser).eq('id', updatedUser.id);
       setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
       
-      // Sync with session if the updated user is the one logged in
       if (currentUser && updatedUser.id === currentUser.id) {
         const mergedUser = { ...currentUser, ...updatedUser };
         setCurrentUser(mergedUser);
@@ -214,7 +201,7 @@ const App: React.FC = () => {
           onAddUser={async (u) => { await supabase.from('users').insert([u]); fetchData(); }}
           onUpdateUser={handleUserUpdate}
           onUpdateRole={(id, role) => { const u = users.find(x => x.id === id); if(u) handleUserUpdate({...u, role}); }}
-          onUpdatePassword={(id, pw) => { const u = users.find(x => x.id === id); if(u) handleUserUpdate({...u, password: pw}); }}
+          onUpdatePassword={(id, pw) => { const u = users.find(x => x.id === id); if(u) handleUpdatePassword(id, pw); }}
           onDeleteUser={async (id) => { await supabase.from('users').delete().eq('id', id); fetchData(); }}
         />
       );
@@ -234,6 +221,14 @@ const App: React.FC = () => {
       );
       default: return <Dashboard bookings={bookings} users={users} />;
     }
+  };
+
+  const handleUpdatePassword = async (id: string, pw: string) => {
+    try {
+      await supabase.from('users').update({ password: pw }).eq('id', id);
+      setUsers(prev => prev.map(u => u.id === id ? { ...u, password: pw } : u));
+      addNotification('Password updated successfully.', 'success');
+    } catch (err: any) { console.error(err.message); }
   };
 
   if (isLoading && !isLoggedIn) {
@@ -257,42 +252,62 @@ const App: React.FC = () => {
         onLogout={handleLogout}
         systemSettings={systemSettings}
         isOpen={isSidebarOpen}
+        setIsOpen={setIsSidebarOpen}
       />
-      <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'ml-64' : 'ml-0'}`}>
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-8 sticky top-0 z-30 shadow-sm">
-          <div className="flex items-center space-x-4">
-            <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
+      {/* Main content margin: Dynamic based on sidebar state on desktop */}
+      <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:ml-56' : 'ml-0'}`}>
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 shadow-sm">
+          <div className="flex items-center space-x-2 md:space-x-4">
+            <button 
+              onClick={() => setIsSidebarOpen(!isSidebarOpen)} 
+              className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 transition-colors"
+            >
               <Menu size={20} />
             </button>
-            <div className="text-slate-800 font-bold">{systemSettings.panelName}</div>
+            <div className="text-slate-800 font-bold text-sm md:text-base line-clamp-1 truncate max-w-[150px] md:max-w-none">
+              {systemSettings.panelName}
+            </div>
           </div>
           
-          <div className="flex items-center space-x-6">
+          <div className="flex items-center space-x-2 md:space-x-6">
             <button onClick={() => setShowNotifications(!showNotifications)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500 relative">
               <Bell size={20} />
-              {notifications.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full"></span>}
+              {notifications.length > 0 && <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full border border-white"></span>}
             </button>
             <div 
               onClick={() => setIsProfileModalOpen(true)}
-              className="flex items-center space-x-3 border-l border-slate-200 pl-6 cursor-pointer"
+              className="flex items-center space-x-2 md:space-x-3 border-l border-slate-200 pl-3 md:pl-6 cursor-pointer group"
             >
-              <div className="text-right">
-                <p className="text-[11px] font-black">{currentUser.name}</p>
-                <p className="text-[9px] font-bold text-blue-600 uppercase">{currentUser.role}</p>
+              <div className="text-right hidden sm:block">
+                <p className="text-[10px] md:text-[11px] font-black group-hover:text-blue-600 transition-colors">{currentUser.name}</p>
+                <p className="text-[8px] md:text-[9px] font-bold text-blue-600 uppercase tracking-tighter">{currentUser.role.replace('_', ' ')}</p>
               </div>
-              <div className="w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200">
-                {currentUser.avatar ? <img src={currentUser.avatar} className="w-full h-full object-cover" /> : currentUser.name.charAt(0)}
+              <div className="w-8 h-8 md:w-9 h-9 bg-slate-100 rounded-lg flex items-center justify-center border border-slate-200 overflow-hidden shrink-0">
+                {currentUser.avatar ? (
+                  <img src={currentUser.avatar} className="w-full h-full object-cover" alt="Avatar" />
+                ) : (
+                  <span className="font-bold text-slate-500 text-xs">{currentUser.name.charAt(0)}</span>
+                )}
               </div>
             </div>
           </div>
         </header>
 
-        <div className="p-8 pb-20 max-w-7xl mx-auto w-full">{renderContent()}</div>
+        <div className="p-4 md:p-8 pb-20 max-w-7xl mx-auto w-full flex-1">
+          {renderContent()}
+        </div>
 
-        <footer className="mt-auto border-t border-slate-200 p-4 bg-white flex justify-between text-[10px] text-slate-400 font-bold uppercase">
-          <span>&copy; 2026 {systemSettings.panelName}</span>
-          <span className="flex items-center text-green-500">
-            <CheckCircle size={10} className="mr-1" /> Enterprise Secure Sync
+        <footer className="mt-auto border-t border-slate-200 p-4 bg-white flex justify-center items-center text-[10px] text-slate-400 font-bold uppercase tracking-widest">
+          <span className="flex items-center text-center">
+            Designed & Developed by&nbsp;
+            <a 
+              href="https://polok-4xqo73k.gamma.site/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="text-blue-600 hover:text-blue-700 transition-colors ml-0.5 underline decoration-blue-100 underline-offset-4"
+            >
+              Foysal
+            </a>
           </span>
         </footer>
       </main>
