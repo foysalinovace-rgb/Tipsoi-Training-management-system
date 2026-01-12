@@ -140,50 +140,61 @@ const App: React.FC = () => {
       }
 
       fetchData();
-    } catch (err: any) { alert(err.message); }
+    } catch (err: any) { 
+      alert(err.message); 
+      addNotification('Database Error', err.message, 'error');
+    }
     setIsBookingModalOpen(false);
     setSelectedBookingForEdit(null);
   };
 
-  const handleUpdateKams = async (newKamList: string[]) => {
+  const handleUpdateKams = useCallback(async (newKamList: string[]) => {
     try {
       const added = newKamList.filter(x => !kams.includes(x));
       const removed = kams.filter(x => !newKamList.includes(x));
 
       if (added.length > 0) {
-        await supabase.from('kams').insert(added.map(name => ({ name })));
-      }
-      if (removed.length > 0) {
-        await supabase.from('kams').delete().in('name', removed);
+        const { error: insErr } = await supabase.from('kams').insert(added.map(name => ({ name })));
+        if (insErr) throw insErr;
       }
       
-      setKams(newKamList);
-      addNotification('KAM Registry Updated', `${added.length} added, ${removed.length} removed.`, 'success');
+      if (removed.length > 0) {
+        const { error: delErr } = await supabase.from('kams').delete().in('name', removed);
+        if (delErr) throw delErr;
+      }
+      
+      // Sync truth from DB after update
+      await fetchData();
+      addNotification('KAM Registry Updated', `Registry synchronized successfully.`, 'success');
     } catch (err: any) {
       console.error("KAM sync error:", err);
-      addNotification('Sync Error', 'Failed to update KAM database.', 'error');
+      addNotification('KAM Sync Error', err.message || 'Failed to update KAM database.', 'error');
     }
-  };
+  }, [kams, fetchData, addNotification]);
 
-  const handleUpdatePackages = async (newPkgList: string[]) => {
+  const handleUpdatePackages = useCallback(async (newPkgList: string[]) => {
     try {
       const added = newPkgList.filter(x => !packages.includes(x));
       const removed = packages.filter(x => !newPkgList.includes(x));
 
       if (added.length > 0) {
-        await supabase.from('packages').insert(added.map(name => ({ name })));
-      }
-      if (removed.length > 0) {
-        await supabase.from('packages').delete().in('name', removed);
+        const { error: insErr } = await supabase.from('packages').insert(added.map(name => ({ name })));
+        if (insErr) throw insErr;
       }
       
-      setPackages(newPkgList);
-      addNotification('Package Registry Updated', `${added.length} added, ${removed.length} removed.`, 'success');
+      if (removed.length > 0) {
+        const { error: delErr } = await supabase.from('packages').delete().in('name', removed);
+        if (delErr) throw delErr;
+      }
+      
+      // Sync truth from DB after update
+      await fetchData();
+      addNotification('Package Master Updated', `Registry synchronized successfully.`, 'success');
     } catch (err: any) {
       console.error("Package sync error:", err);
-      addNotification('Sync Error', 'Failed to update package database.', 'error');
+      addNotification('Package Sync Error', err.message || 'Failed to update package database.', 'error');
     }
-  };
+  }, [packages, fetchData, addNotification]);
 
   const handleDeleteBooking = async (id: string) => {
     try {
@@ -263,8 +274,9 @@ const App: React.FC = () => {
           settings={systemSettings} 
           onUpdate={async (s) => {
             setSystemSettings(s);
-            await supabase.from('settings').upsert({ id: 1, ...s });
-            addNotification('System Settings', 'Platform branding and configurations updated.', 'success');
+            const { error } = await supabase.from('settings').upsert({ id: 1, ...s });
+            if (error) addNotification('Settings Error', error.message, 'error');
+            else addNotification('System Settings', 'Platform branding updated.', 'success');
           }} 
           kams={kams}
           onUpdateKams={handleUpdateKams}
@@ -427,10 +439,13 @@ const App: React.FC = () => {
         onClose={() => setIsProfileModalOpen(false)} 
         user={currentUser} 
         onUpdate={async (u) => {
-          await supabase.from('users').update(u).eq('id', u.id);
-          setCurrentUser(u);
-          localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(u));
-          addNotification('Profile Updated', 'User profile information has been synchronized.', 'success');
+          const { error } = await supabase.from('users').update(u).eq('id', u.id);
+          if (error) addNotification('Profile Sync Error', error.message, 'error');
+          else {
+            setCurrentUser(u);
+            localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(u));
+            addNotification('Profile Updated', 'User profile synchronized.', 'success');
+          }
         }} 
       />
     </div>
