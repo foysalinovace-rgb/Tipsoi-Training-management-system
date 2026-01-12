@@ -142,8 +142,6 @@ const App: React.FC = () => {
 
   // 6. Master Data Handlers (Settings)
   const handleUpdateKams = async (newKamList: string[]) => {
-    // Note: In a real app, you might want to identify what was added/removed.
-    // Here we handle the sync by identifying if it's an add or delete operation.
     try {
       if (newKamList.length > kams.length) {
         const added = newKamList.find(n => !kams.includes(n));
@@ -173,6 +171,13 @@ const App: React.FC = () => {
     try {
       await supabase.from('users').update(updatedUser).eq('id', updatedUser.id);
       setUsers(prev => prev.map(u => u.id === updatedUser.id ? updatedUser : u));
+      
+      // Sync with session if the updated user is the one logged in
+      if (currentUser && updatedUser.id === currentUser.id) {
+        const mergedUser = { ...currentUser, ...updatedUser };
+        setCurrentUser(mergedUser);
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(mergedUser));
+      }
     } catch (err: any) { console.error(err.message); }
   };
 
@@ -305,7 +310,7 @@ const App: React.FC = () => {
         isOpen={isProfileModalOpen} 
         onClose={() => setIsProfileModalOpen(false)} 
         user={currentUser} 
-        onUpdate={(u) => { setCurrentUser(u); handleUserUpdate(u); }} 
+        onUpdate={handleUserUpdate} 
       />
     </div>
   );

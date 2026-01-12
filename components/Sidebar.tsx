@@ -9,7 +9,7 @@ import {
   Settings as SettingsIcon,
   FileSpreadsheet
 } from 'lucide-react';
-import { User, SystemSettings } from '../types';
+import { User, UserRole, SystemSettings } from '../types';
 
 interface SidebarProps {
   activeTab: string;
@@ -47,7 +47,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
         )}
         <div>
           <h1 className="text-lg font-bold tracking-tight text-blue-400 line-clamp-1">{systemSettings.panelName}</h1>
-          <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest leading-none mt-0.5">Enterprise</p>
         </div>
       </div>
       

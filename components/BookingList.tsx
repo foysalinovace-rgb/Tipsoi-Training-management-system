@@ -16,7 +16,9 @@ import {
   Calendar as CalendarIcon,
   X,
   Filter,
-  AlertTriangle
+  AlertTriangle,
+  RotateCcw,
+  Check
 } from 'lucide-react';
 
 interface BookingListProps {
@@ -39,14 +41,34 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
   const [selectedDate, setSelectedDate] = useState(getLocalDateString());
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const calendarRef = useRef<HTMLDivElement>(null);
+  
+  // Date Range States
+  const [rangeStartDate, setRangeStartDate] = useState('');
+  const [rangeEndDate, setRangeEndDate] = useState('');
+  const [isRangeActive, setIsRangeActive] = useState(false);
+  const [activeRangePicker, setActiveRangePicker] = useState<'start' | 'end' | null>(null);
+  const [rangeCalendarMonth, setRangeCalendarMonth] = useState(new Date());
 
-  // Close calendar when clicking outside
+  const calendarRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const rangePickerRef = useRef<HTMLDivElement>(null);
+
+  // Close dropdowns when clicking outside
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
       if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
         setIsCalendarOpen(false);
+      }
+      if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
+        // Only close if we're not interacting with the nested range picker
+        if (rangePickerRef.current && rangePickerRef.current.contains(event.target as Node)) return;
+        setIsMoreOpen(false);
+        setActiveRangePicker(null);
+      }
+      if (rangePickerRef.current && !rangePickerRef.current.contains(event.target as Node)) {
+         setActiveRangePicker(null);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -66,6 +88,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
 
   // Utility to format date for list
   const formatDateDisplay = (dateStr: string) => {
+    if (!dateStr) return 'Select Date';
     return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -73,13 +96,13 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
     });
   };
 
-  // Calendar Logic
+  // Calendar Logic for picking days
   const daysInMonth = (year: number, month: number) => new Date(year, month + 1, 0).getDate();
   const startDayOfMonth = (year: number, month: number) => new Date(year, month, 1).getDay();
 
-  const calendarData = useMemo(() => {
-    const year = currentMonth.getFullYear();
-    const month = currentMonth.getMonth();
+  const getCalendarDays = (baseDate: Date) => {
+    const year = baseDate.getFullYear();
+    const month = baseDate.getMonth();
     const totalDays = daysInMonth(year, month);
     const startOffset = startDayOfMonth(year, month);
     
@@ -92,10 +115,17 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
       days.push({ day: i, dateStr });
     }
     return days;
-  }, [currentMonth]);
+  };
+
+  const calendarData = useMemo(() => getCalendarDays(currentMonth), [currentMonth]);
+  const rangeCalendarData = useMemo(() => getCalendarDays(rangeCalendarMonth), [rangeCalendarMonth]);
 
   const changeMonth = (offset: number) => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1));
+  };
+
+  const changeRangeMonth = (offset: number) => {
+    setRangeCalendarMonth(new Date(rangeCalendarMonth.getFullYear(), rangeCalendarMonth.getMonth() + offset, 1));
   };
 
   const getStatusStyle = (status: BookingStatus) => {
@@ -107,11 +137,32 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
     }
   };
 
+  const handleApplyRange = () => {
+    if (rangeStartDate && rangeEndDate) {
+      setIsRangeActive(true);
+      setIsMoreOpen(false);
+    }
+  };
+
+  const handleClearRange = () => {
+    setRangeStartDate('');
+    setRangeEndDate('');
+    setIsRangeActive(false);
+    setActiveRangePicker(null);
+  };
+
   const filteredBookings = bookings.filter(b => {
     const matchesSearch = b.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          b.package.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          b.clientName.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesDate = b.date === selectedDate;
+    
+    let matchesDate = false;
+    if (isRangeActive && rangeStartDate && rangeEndDate) {
+      matchesDate = b.date >= rangeStartDate && b.date <= rangeEndDate;
+    } else {
+      matchesDate = b.date === selectedDate;
+    }
+
     return matchesSearch && matchesDate;
   });
 
@@ -157,18 +208,21 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
           </div>
 
           <div className="flex items-center space-x-2 w-full md:w-auto relative">
-            {/* Date Filter Trigger */}
+            {/* Main Date Filter Trigger */}
             <button 
-              onClick={() => setIsCalendarOpen(!isCalendarOpen)}
+              onClick={() => {
+                setIsCalendarOpen(!isCalendarOpen);
+                setIsMoreOpen(false);
+              }}
               className={`flex items-center space-x-3 px-4 py-2.5 rounded-xl border transition-all text-sm font-bold ${
-                isCalendarOpen ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
+                isCalendarOpen ? 'bg-blue-600 text-white border-blue-600' : (isRangeActive ? 'bg-slate-100 text-slate-400 border-slate-200 line-through' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50')
               }`}
             >
               <CalendarIcon size={18} />
-              <span>{new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+              <span className="whitespace-nowrap">{new Date(selectedDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
             </button>
 
-            {/* Small Floating Calendar */}
+            {/* Small Floating Calendar for Single Date */}
             {isCalendarOpen && (
               <div 
                 ref={calendarRef}
@@ -198,16 +252,17 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                           onClick={() => {
                             setSelectedDate(data.dateStr);
                             setIsCalendarOpen(false);
+                            setIsRangeActive(false);
                           }}
                           className={`w-8 h-8 rounded-lg text-xs font-bold transition-all relative flex items-center justify-center ${
-                            selectedDate === data.dateStr 
+                            selectedDate === data.dateStr && !isRangeActive
                               ? 'bg-blue-600 text-white' 
                               : 'hover:bg-slate-100 text-slate-600'
                           }`}
                         >
                           {data.day}
                           {hasBookingsOnDate(data.dateStr) && (
-                            <span className={`absolute bottom-1 w-1 h-1 rounded-full ${selectedDate === data.dateStr ? 'bg-white' : 'bg-blue-400'}`}></span>
+                            <span className={`absolute bottom-1 w-1 h-1 rounded-full ${selectedDate === data.dateStr && !isRangeActive ? 'bg-white' : 'bg-blue-400'}`}></span>
                           )}
                         </button>
                       )}
@@ -219,6 +274,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                   <button 
                     onClick={() => {
                       setSelectedDate(getLocalDateString());
+                      setIsRangeActive(false);
                       setIsCalendarOpen(false);
                     }}
                     className="text-[10px] font-black uppercase text-blue-600 hover:underline"
@@ -235,24 +291,193 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
               </div>
             )}
 
-            <button className="hidden sm:inline-flex items-center px-4 py-2.5 bg-white border border-slate-200 rounded-xl text-sm font-bold text-slate-600 hover:bg-slate-50 transition-colors">
-              <Filter size={16} className="mr-2" />
-              More
-            </button>
+            <div className="relative" ref={moreRef}>
+              <button 
+                onClick={() => {
+                  setIsMoreOpen(!isMoreOpen);
+                  setIsCalendarOpen(false);
+                  setActiveRangePicker(null);
+                }}
+                className={`inline-flex items-center px-4 py-2.5 rounded-xl border transition-all text-sm font-bold shadow-sm ${
+                  isMoreOpen || isRangeActive ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
+                }`}
+              >
+                <Filter size={16} className="mr-2" />
+                More
+              </button>
+
+              {/* Advanced Filter Panel */}
+              {isMoreOpen && (
+                <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-visible animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50/50">
+                    <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Advanced Search</h4>
+                  </div>
+                  <div className="p-4 space-y-4">
+                    <div className="space-y-3">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Date Range Filter</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {/* FROM DATE PICKER */}
+                        <div className="space-y-1 relative">
+                          <label className="text-[9px] font-bold text-slate-500 uppercase">From</label>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setActiveRangePicker(activeRangePicker === 'start' ? null : 'start');
+                              if (rangeStartDate) setRangeCalendarMonth(new Date(rangeStartDate));
+                            }}
+                            className={`w-full px-3 py-2 rounded-lg border text-left text-[11px] font-bold outline-none transition-all ${
+                              activeRangePicker === 'start' ? 'border-blue-500 ring-2 ring-blue-500/10 bg-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className={rangeStartDate ? 'text-slate-800' : 'text-slate-400'}>
+                              {rangeStartDate ? formatDateDisplay(rangeStartDate) : 'Select Date'}
+                            </span>
+                          </button>
+
+                          {/* NESTED MINI CALENDAR FOR 'FROM' */}
+                          {activeRangePicker === 'start' && (
+                            <div ref={rangePickerRef} className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-3 z-[60] animate-in fade-in slide-in-from-top-1 duration-150">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">
+                                  {rangeCalendarMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}
+                                </span>
+                                <div className="flex space-x-1">
+                                  <button type="button" onClick={() => changeRangeMonth(-1)} className="p-1 hover:bg-slate-100 rounded text-slate-500"><ChevronLeft size={14}/></button>
+                                  <button type="button" onClick={() => changeRangeMonth(1)} className="p-1 hover:bg-slate-100 rounded text-slate-500"><ChevronRight size={14}/></button>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
+                                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
+                                  <div key={d} className="text-[8px] font-black text-slate-300 uppercase">{d}</div>
+                                ))}
+                              </div>
+                              <div className="grid grid-cols-7 gap-0.5">
+                                {rangeCalendarData.map((data, idx) => (
+                                  <div key={idx} className="aspect-square flex items-center justify-center">
+                                    {data.day && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setRangeStartDate(data.dateStr);
+                                          setActiveRangePicker(null);
+                                        }}
+                                        className={`w-6 h-6 rounded text-[9px] font-bold transition-all flex items-center justify-center ${
+                                          rangeStartDate === data.dateStr ? 'bg-blue-600 text-white' : 'hover:bg-slate-100 text-slate-600'
+                                        }`}
+                                      >
+                                        {data.day}
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* TO DATE PICKER */}
+                        <div className="space-y-1 relative">
+                          <label className="text-[9px] font-bold text-slate-500 uppercase">To</label>
+                          <button 
+                            type="button"
+                            onClick={() => {
+                              setActiveRangePicker(activeRangePicker === 'end' ? null : 'end');
+                              if (rangeEndDate) setRangeCalendarMonth(new Date(rangeEndDate));
+                            }}
+                            className={`w-full px-3 py-2 rounded-lg border text-left text-[11px] font-bold outline-none transition-all ${
+                              activeRangePicker === 'end' ? 'border-blue-500 ring-2 ring-blue-500/10 bg-white' : 'border-slate-200 bg-white text-slate-700 hover:bg-slate-50'
+                            }`}
+                          >
+                            <span className={rangeEndDate ? 'text-slate-800' : 'text-slate-400'}>
+                              {rangeEndDate ? formatDateDisplay(rangeEndDate) : 'Select Date'}
+                            </span>
+                          </button>
+
+                          {/* NESTED MINI CALENDAR FOR 'TO' */}
+                          {activeRangePicker === 'end' && (
+                            <div ref={rangePickerRef} className="absolute top-full left-0 mt-2 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-3 z-[60] animate-in fade-in slide-in-from-top-1 duration-150">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-[10px] font-black text-slate-800 uppercase tracking-tighter">
+                                  {rangeCalendarMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}
+                                </span>
+                                <div className="flex space-x-1">
+                                  <button type="button" onClick={() => changeRangeMonth(-1)} className="p-1 hover:bg-slate-100 rounded text-slate-500"><ChevronLeft size={14}/></button>
+                                  <button type="button" onClick={() => changeRangeMonth(1)} className="p-1 hover:bg-slate-100 rounded text-slate-500"><ChevronRight size={14}/></button>
+                                </div>
+                              </div>
+                              <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
+                                {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => (
+                                  <div key={d} className="text-[8px] font-black text-slate-300 uppercase">{d}</div>
+                                ))}
+                              </div>
+                              <div className="grid grid-cols-7 gap-0.5">
+                                {rangeCalendarData.map((data, idx) => (
+                                  <div key={idx} className="aspect-square flex items-center justify-center">
+                                    {data.day && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          setRangeEndDate(data.dateStr);
+                                          setActiveRangePicker(null);
+                                        }}
+                                        className={`w-6 h-6 rounded text-[9px] font-bold transition-all flex items-center justify-center ${
+                                          rangeEndDate === data.dateStr ? 'bg-blue-600 text-white' : 'hover:bg-slate-100 text-slate-600'
+                                        }`}
+                                      >
+                                        {data.day}
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2">
+                    <button 
+                      onClick={handleClearRange}
+                      className="px-4 py-2 bg-white border border-slate-200 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-colors flex items-center justify-center"
+                    >
+                      <RotateCcw size={12} className="mr-2" /> Reset
+                    </button>
+                    <button 
+                      onClick={handleApplyRange}
+                      disabled={!rangeStartDate || !rangeEndDate}
+                      className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-md shadow-blue-600/20 disabled:opacity-50 flex items-center justify-center"
+                    >
+                      <Check size={12} className="mr-2" /> Apply
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* Selected Date Indicator Banner */}
-        <div className="px-6 py-2.5 bg-blue-50/50 border-b border-slate-100 flex items-center justify-between">
+        {/* Selected Date/Range Indicator Banner */}
+        <div className={`px-6 py-2.5 border-b border-slate-100 flex items-center justify-between ${isRangeActive ? 'bg-slate-900 text-white' : 'bg-blue-50/50'}`}>
           <div className="flex items-center space-x-2">
-            <div className="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></div>
-            <span className="text-[10px] font-black uppercase text-blue-700 tracking-widest">
-              Schedule for {new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+            <div className={`w-2 h-2 rounded-full animate-pulse ${isRangeActive ? 'bg-blue-400' : 'bg-blue-500'}`}></div>
+            <span className={`text-[10px] font-black uppercase tracking-widest ${isRangeActive ? 'text-blue-200' : 'text-blue-700'}`}>
+              {isRangeActive 
+                ? `Results for Period: ${formatDateDisplay(rangeStartDate)} to ${formatDateDisplay(rangeEndDate)}`
+                : `Schedule for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
+              }
             </span>
           </div>
-          <span className="text-[10px] font-bold text-slate-400 uppercase">
-            {filteredBookings.length} Entry Found
-          </span>
+          <div className="flex items-center space-x-3">
+             {isRangeActive && (
+               <button onClick={handleClearRange} className="text-[10px] font-black uppercase text-blue-400 hover:text-white transition-colors">
+                 Clear Filter
+               </button>
+             )}
+             <span className={`text-[10px] font-bold uppercase ${isRangeActive ? 'text-slate-400' : 'text-slate-400'}`}>
+               {filteredBookings.length} Entry Found
+             </span>
+          </div>
         </div>
 
         {/* Data Table */}
@@ -344,14 +569,19 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
               </div>
               <h3 className="text-slate-800 font-bold text-lg">Empty Schedule</h3>
               <p className="text-slate-400 text-sm max-w-xs mx-auto mt-2">
-                There are no training sessions booked for this specific date. 
-                Use the calendar filter above to explore other dates.
+                {isRangeActive 
+                  ? "No records found within the specified date range."
+                  : "There are no training sessions booked for this specific date."
+                }
               </p>
               <button 
-                onClick={() => setSelectedDate(getLocalDateString())}
+                onClick={() => {
+                  setSelectedDate(getLocalDateString());
+                  handleClearRange();
+                }}
                 className="mt-6 text-blue-600 font-bold text-xs uppercase tracking-widest hover:underline"
               >
-                Return to Today
+                Reset all filters
               </button>
             </div>
           )}
