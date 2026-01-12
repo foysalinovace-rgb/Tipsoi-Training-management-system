@@ -247,7 +247,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Reports</h2>
-          <p className="text-slate-500 text-sm font-medium">Generate and export training audit reports</p>
+          <p className="text-slate-500 text-sm font-medium">Generate and export training reports</p>
         </div>
         <div className="flex items-center space-x-2">
           <button 

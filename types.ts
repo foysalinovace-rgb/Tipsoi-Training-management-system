@@ -23,6 +23,15 @@ export enum TrainingType {
   HYBRID = 'Hybrid'
 }
 
+export interface AppNotification {
+  id: string;
+  message: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+  timestamp: string;
+  read: boolean;
+  title: string;
+}
+
 export interface Client {
   id: string;
   name: string;
@@ -50,7 +59,7 @@ export interface TrainingBooking {
   id: string; 
   clientName: string; 
   assignedPerson: string;
-  kamName: string; // Added for Reporting
+  kamName: string; 
   title: string;
   category: string;
   type: TrainingType;
@@ -80,7 +89,7 @@ export interface User {
   password?: string;
   role: UserRole;
   avatar?: string;
-  permissions: string[]; // Granular module access
+  permissions: string[]; 
 }
 
 export interface SystemSettings {

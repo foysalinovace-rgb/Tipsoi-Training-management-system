@@ -305,7 +305,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
                   <Calendar size={16} />
                 </div>
                 <div>
-                  <h3 className="text-base font-bold text-slate-800">Upcoming Roadmaps</h3>
+                  <h3 className="text-base font-bold text-slate-800">Upcoming Schedules</h3>
                   <p className="text-[9px] text-slate-400 font-bold uppercase tracking-widest">Future commitments</p>
                 </div>
               </div>
