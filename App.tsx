@@ -90,7 +90,7 @@ const App: React.FC = () => {
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       read: false
     };
-    setNotifications(prev => [newNotif, ...prev.slice(0, 19)]); // Keep last 20
+    setNotifications(prev => [newNotif, ...prev.slice(0, 19)]); 
   }, []);
 
   const fetchData = useCallback(async () => {
@@ -131,7 +131,6 @@ const App: React.FC = () => {
       
       if (error) throw error;
       
-      // Trigger Assignment Notification
       if (bookingData.assignedPerson) {
         addNotification(
           'Training Assigned',
@@ -144,6 +143,46 @@ const App: React.FC = () => {
     } catch (err: any) { alert(err.message); }
     setIsBookingModalOpen(false);
     setSelectedBookingForEdit(null);
+  };
+
+  const handleUpdateKams = async (newKamList: string[]) => {
+    try {
+      const added = newKamList.filter(x => !kams.includes(x));
+      const removed = kams.filter(x => !newKamList.includes(x));
+
+      if (added.length > 0) {
+        await supabase.from('kams').insert(added.map(name => ({ name })));
+      }
+      if (removed.length > 0) {
+        await supabase.from('kams').delete().in('name', removed);
+      }
+      
+      setKams(newKamList);
+      addNotification('KAM Registry Updated', `${added.length} added, ${removed.length} removed.`, 'success');
+    } catch (err: any) {
+      console.error("KAM sync error:", err);
+      addNotification('Sync Error', 'Failed to update KAM database.', 'error');
+    }
+  };
+
+  const handleUpdatePackages = async (newPkgList: string[]) => {
+    try {
+      const added = newPkgList.filter(x => !packages.includes(x));
+      const removed = packages.filter(x => !newPkgList.includes(x));
+
+      if (added.length > 0) {
+        await supabase.from('packages').insert(added.map(name => ({ name })));
+      }
+      if (removed.length > 0) {
+        await supabase.from('packages').delete().in('name', removed);
+      }
+      
+      setPackages(newPkgList);
+      addNotification('Package Registry Updated', `${added.length} added, ${removed.length} removed.`, 'success');
+    } catch (err: any) {
+      console.error("Package sync error:", err);
+      addNotification('Sync Error', 'Failed to update package database.', 'error');
+    }
   };
 
   const handleDeleteBooking = async (id: string) => {
@@ -161,7 +200,6 @@ const App: React.FC = () => {
     localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(user));
     setActiveTab(user.permissions?.[0] || 'dashboard');
     
-    // Welcome Notification
     setTimeout(() => {
       addNotification(
         'Welcome Back',
@@ -229,9 +267,9 @@ const App: React.FC = () => {
             addNotification('System Settings', 'Platform branding and configurations updated.', 'success');
           }} 
           kams={kams}
-          onUpdateKams={async (list) => { setKams(list); await supabase.from('kams').delete().not('name', 'in', `(${list.join(',')})`); }}
+          onUpdateKams={handleUpdateKams}
           packages={packages}
-          onUpdatePackages={async (list) => { setPackages(list); }}
+          onUpdatePackages={handleUpdatePackages}
         />
       );
       default: return <Dashboard bookings={bookings} users={users} />;
