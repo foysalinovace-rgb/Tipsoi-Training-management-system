@@ -206,7 +206,7 @@ const Settings: React.FC<SettingsProps> = ({
                   required
                   type="text"
                   placeholder="Enter new KAM name..."
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-sm font-medium"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-sm font-medium"
                   value={newKam}
                   onChange={e => setNewKam(e.target.value)}
                 />
@@ -220,7 +220,7 @@ const Settings: React.FC<SettingsProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                 {kams.map((kam, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 group hover:border-blue-200 hover:bg-white transition-all">
+                  <div key={idx} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 group hover:border-blue-200 transition-all shadow-sm">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 rounded-lg bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-xs uppercase">
                         {kam.charAt(0)}
@@ -259,7 +259,7 @@ const Settings: React.FC<SettingsProps> = ({
                   required
                   type="text"
                   placeholder="Enter new package name..."
-                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-sm font-medium"
+                  className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 bg-white focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 outline-none text-sm font-medium"
                   value={newPackage}
                   onChange={e => setNewPackage(e.target.value)}
                 />
@@ -273,7 +273,7 @@ const Settings: React.FC<SettingsProps> = ({
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-4">
                 {packages.map((pkg, idx) => (
-                  <div key={idx} className="flex items-center justify-between p-4 bg-slate-50 rounded-xl border border-slate-100 group hover:border-purple-200 hover:bg-white transition-all">
+                  <div key={idx} className="flex items-center justify-between p-4 bg-white rounded-xl border border-slate-200 group hover:border-purple-200 transition-all shadow-sm">
                     <div className="flex items-center space-x-3">
                       <div className="w-8 h-8 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center font-bold text-xs uppercase">
                         {pkg.charAt(0)}

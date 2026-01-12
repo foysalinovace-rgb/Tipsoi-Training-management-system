@@ -21,7 +21,9 @@ import {
   BarChart3,
   Users as UsersIcon,
   Settings as SettingsIcon,
-  ShieldIcon
+  ShieldIcon,
+  User as UserIcon,
+  Lock
 } from 'lucide-react';
 
 interface UserManagementProps {
@@ -157,7 +159,7 @@ const UserManagement: React.FC<UserManagementProps> = ({
           className="inline-flex items-center px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95"
         >
           <UserPlus size={18} className="mr-2" />
-          Provision New User
+          Create New User
         </button>
       </div>
 
@@ -246,90 +248,99 @@ const UserManagement: React.FC<UserManagementProps> = ({
         </table>
       </div>
 
-      {/* Add / Edit Modal Permission Section Refined */}
+      {/* Syncing style with BookingModal */}
       {(showAddModal || showEditModal.isOpen) && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/70 backdrop-blur-md animate-in fade-in duration-300 overflow-y-auto">
-          <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 slide-in-from-bottom-4 duration-300 my-8">
-            <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="px-5 py-3 border-b border-slate-100 flex items-center justify-between shrink-0">
               <div>
-                <h3 className="text-xl font-black text-slate-800 tracking-tight">
-                  {showAddModal ? 'Create New System Account' : 'Edit Access Permissions'}
+                <h3 className="text-lg font-bold text-slate-800 leading-tight">
+                  {showAddModal ? 'Create New User' : 'Edit User Access'}
                 </h3>
-                <p className="text-xs text-slate-500 font-medium uppercase tracking-widest mt-0.5">Define role and module authorization</p>
+                <p className="text-[11px] text-slate-500 uppercase tracking-tighter">Define identity and system permissions</p>
               </div>
               <button 
                 onClick={() => { setShowAddModal(false); setShowEditModal({ isOpen: false, user: null }); }} 
-                className="p-2.5 bg-white border border-slate-200 hover:bg-slate-100 rounded-full text-slate-400 transition-all shadow-sm"
+                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"
               >
-                <X size={20} />
+                <X size={18} />
               </button>
             </div>
-            
-            <form onSubmit={showAddModal ? handleSubmit : handleEditSubmit} className="p-8 space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Full Identity</label>
+
+            <form 
+              id="user-form" 
+              onSubmit={showAddModal ? handleSubmit : handleEditSubmit} 
+              className="p-5 space-y-4 overflow-y-auto custom-scrollbar"
+            >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-x-4 gap-y-4">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase flex items-center tracking-wider">
+                    <UserIcon size={11} className="mr-1.5" /> Full Name
+                  </label>
                   <input 
                     required 
                     type="text" 
-                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white font-bold outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all" 
-                    placeholder="e.g. John Smith"
+                    placeholder="e.g. John Doe"
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 outline-none transition-all text-xs font-bold bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
                     value={showAddModal ? formData.name : editFormData.name} 
                     onChange={e => showAddModal ? setFormData({...formData, name: e.target.value}) : setEditFormData({...editFormData, name: e.target.value})} 
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Work Email</label>
+
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase flex items-center tracking-wider">
+                    <Mail size={11} className="mr-1.5" /> Email Address
+                  </label>
                   <input 
                     required 
                     type="email" 
-                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white font-bold outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all" 
-                    placeholder="john@tipsoi.com"
+                    placeholder="name@tipsoi.com"
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 outline-none transition-all text-xs font-bold bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
                     value={showAddModal ? formData.email : editFormData.email} 
                     onChange={e => showAddModal ? setFormData({...formData, email: e.target.value}) : setEditFormData({...editFormData, email: e.target.value})} 
                   />
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-6">
                 {showAddModal && (
-                  <div className="space-y-1.5">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Security Key</label>
+                  <div className="space-y-1">
+                    <label className="text-[10px] font-black text-slate-500 uppercase flex items-center tracking-wider">
+                      <Lock size={11} className="mr-1.5" /> Initial Password
+                    </label>
                     <input 
                       required 
                       type="password" 
-                      className="w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white font-bold outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all" 
-                      placeholder="••••••••"
+                      placeholder="Minimum 6 chars"
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 outline-none transition-all text-xs font-bold bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
                       value={formData.password} 
                       onChange={e => setFormData({...formData, password: e.target.value})} 
                     />
                   </div>
                 )}
-                <div className={`space-y-1.5 ${!showAddModal ? 'col-span-2' : ''}`}>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">System Base Role</label>
+                
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-slate-500 uppercase flex items-center tracking-wider">
+                    <Shield size={11} className="mr-1.5" /> System Role
+                  </label>
                   <select 
-                    className="w-full px-4 py-3 border border-slate-200 rounded-2xl text-sm bg-white font-bold outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-600 transition-all appearance-none cursor-pointer"
+                    required
+                    className="w-full px-3 py-1.5 rounded-lg border border-slate-200 outline-none text-xs font-bold bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
                     value={showAddModal ? formData.role : editFormData.role} 
                     onChange={e => showAddModal ? setFormData({...formData, role: e.target.value as UserRole}) : setEditFormData({...editFormData, role: e.target.value as UserRole})} 
                   >
                     <option value={UserRole.STAFF}>General Staff</option>
-                    <option value={UserRole.SUPER_ADMIN}>Super Administrator</option>
-                    <option value={UserRole.TRAINER}>Certified Trainer</option>
-                    <option value={UserRole.KAM}>Account Manager</option>
+                    <option value={UserRole.SUPER_ADMIN}>Super Admin</option>
+                    <option value={UserRole.TRAINER}>Trainer</option>
+                    <option value={UserRole.KAM}>KAM</option>
                   </select>
                 </div>
               </div>
 
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <label className="text-[11px] font-black text-slate-800 uppercase tracking-widest flex items-center">
-                    <ShieldIcon size={14} className="mr-2 text-blue-600" />
-                    Module Access Authorization
-                  </label>
-                  <span className="text-[9px] font-black text-slate-400 uppercase">Select Multiple</span>
-                </div>
+              <div className="pt-2">
+                <label className="text-[10px] font-black text-slate-500 uppercase flex items-center mb-2 tracking-wider">
+                  <ShieldIcon size={12} className="mr-1.5 text-blue-500" /> Authorized Modules
+                </label>
                 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
                   {MODULES.map(mod => {
                     const isSelected = showAddModal 
                       ? formData.permissions.includes(mod.id)
@@ -340,56 +351,44 @@ const UserManagement: React.FC<UserManagementProps> = ({
                         key={mod.id}
                         type="button"
                         onClick={() => handleTogglePermission(mod.id, !showAddModal)}
-                        className={`flex items-center space-x-3 p-4 rounded-[1.25rem] border-2 text-left transition-all duration-300 relative overflow-hidden group ${
+                        className={`flex items-center space-x-2 p-2 rounded-lg border transition-all duration-200 ${
                           isSelected
-                          ? 'bg-blue-600 border-blue-600 text-white shadow-lg shadow-blue-500/20 scale-[1.02]'
-                          : 'bg-white border-slate-100 text-slate-500 hover:border-slate-300'
+                          ? 'bg-blue-600 border-blue-600 text-white shadow-md'
+                          : 'bg-white border-slate-200 text-slate-500 hover:border-slate-300'
                         }`}
                       >
-                        <div className={`p-2 rounded-xl transition-colors ${isSelected ? 'bg-white/20' : 'bg-slate-50 group-hover:bg-slate-100'}`}>
-                          <mod.icon size={20} className={isSelected ? 'text-white' : 'text-slate-400'} />
-                        </div>
-                        <div className="flex-1">
-                          <span className={`text-[11px] font-black block leading-none ${isSelected ? 'text-white' : 'text-slate-800'}`}>{mod.label}</span>
-                          <span className={`text-[9px] font-bold mt-1 block uppercase tracking-widest ${isSelected ? 'text-blue-100' : 'text-slate-400'}`}>
-                            {isSelected ? 'Enabled' : 'Restricted'}
-                          </span>
-                        </div>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2">
-                             <CheckCircle2 size={14} className="text-white" />
-                          </div>
-                        )}
+                        <mod.icon size={14} className={isSelected ? 'text-white' : 'text-slate-400'} />
+                        <span className={`text-[10px] font-bold truncate ${isSelected ? 'text-white' : 'text-slate-700'}`}>{mod.label}</span>
                       </button>
                     );
                   })}
                 </div>
               </div>
-
-              <div className="pt-6 flex space-x-4">
-                <button 
-                  type="button" 
-                  onClick={() => { setShowAddModal(false); setShowEditModal({ isOpen: false, user: null }); }} 
-                  className="flex-1 px-6 py-4 text-sm font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 rounded-2xl transition-all active:scale-95"
-                >
-                  Discard
-                </button>
-                <button 
-                  type="submit" 
-                  className="flex-1 px-6 py-4 text-sm font-bold text-white bg-blue-600 hover:bg-blue-700 rounded-2xl shadow-xl shadow-blue-500/20 transition-all active:scale-95"
-                >
-                  {showAddModal ? 'Confirm & Create' : 'Save Authorization'}
-                </button>
-              </div>
             </form>
+
+            <div className="px-5 py-4 border-t border-slate-100 flex justify-end space-x-2 bg-slate-50/30 shrink-0">
+              <button 
+                type="button" 
+                onClick={() => { setShowAddModal(false); setShowEditModal({ isOpen: false, user: null }); }} 
+                className="px-5 py-2 text-xs font-bold text-slate-500 hover:bg-slate-100 rounded-lg transition-all"
+              >
+                Cancel
+              </button>
+              <button 
+                form="user-form"
+                type="submit" 
+                className="px-6 py-2 bg-slate-900 text-white text-xs font-bold rounded-lg shadow-md hover:bg-slate-800 transition-all active:scale-95"
+              >
+                {showAddModal ? 'Create User' : 'Save Changes'}
+              </button>
+            </div>
           </div>
         </div>
       )}
 
-      {/* Reset Modal remained as is for consistency but keeping same font weight logic */}
       {showResetModal.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-md overflow-hidden animate-in zoom-in-95 duration-200">
+          <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/50">
               <div>
                 <h3 className="text-lg font-bold text-slate-800">Credential Refresh</h3>

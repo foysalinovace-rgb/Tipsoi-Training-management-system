@@ -188,10 +188,10 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Real-time Occupancy */}
-        <div className="lg:col-span-4 xl:col-span-3 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col sticky top-20">
-          <div className="p-5 border-b border-slate-100 bg-slate-50/50 flex items-center space-x-3">
-            <div className="p-2 bg-slate-900 text-white rounded-lg shadow-lg">
+        {/* Left Side: Real-time Occupancy (Enlarged and Red Icon, No Scroll) */}
+        <div className="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col sticky top-20">
+          <div className="p-5 border-b border-slate-100 bg-red-50/20 flex items-center space-x-3">
+            <div className="p-2 bg-red-600 text-white rounded-lg shadow-lg shadow-red-500/20">
               <ShieldAlert size={18} />
             </div>
             <div>
@@ -199,13 +199,13 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
               <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Active Personnel Monitor</p>
             </div>
           </div>
-          <div className="p-0 overflow-y-auto max-h-[calc(100vh-320px)] custom-scrollbar">
+          <div className="p-0">
             <div className="divide-y divide-slate-100">
               {trainerOccupancy.map((trainer, idx) => (
                 <div key={idx} className={`p-5 hover:bg-slate-50 transition-colors ${trainer.isOccupied ? 'bg-blue-50/20' : ''}`}>
                   <div className="flex items-center justify-between mb-3">
                     <div className="flex items-center space-x-3">
-                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-xs ${trainer.isOccupied ? 'bg-blue-600 text-white' : 'bg-slate-100 text-slate-400'}`}>
+                      <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-bold text-sm ${trainer.isOccupied ? 'bg-blue-600 text-white shadow-sm' : 'bg-slate-100 text-slate-400'}`}>
                         {trainer.name.charAt(0)}
                       </div>
                       <div>
@@ -246,7 +246,8 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
           </div>
         </div>
 
-        <div className="lg:col-span-8 xl:col-span-9 space-y-6">
+        {/* Right Side: Active Schedule & Upcoming */}
+        <div className="lg:col-span-7 xl:col-span-8 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
             <div className="p-5 border-b border-slate-100 bg-amber-50/20 flex items-center justify-between">
               <div className="flex items-center space-x-3">
