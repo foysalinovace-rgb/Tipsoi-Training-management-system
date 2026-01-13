@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import Sidebar from './components/Sidebar';
 import Dashboard from './components/Dashboard';
+import MDBMasterHub from './components/MDBMasterHub';
+import TicketModule from './components/TicketModule';
 import BookingList from './components/BookingList';
 import ReportModule from './components/ReportModule';
 import Analytics from './components/Analytics';
@@ -20,7 +22,7 @@ import ProfileModal from './components/ProfileModal';
 import Login from './components/Login';
 import UserManagement from './components/UserManagement';
 import Settings from './components/Settings';
-import { TrainingBooking, User, SystemSettings, AppNotification } from './types';
+import { TrainingBooking, User, SystemSettings, AppNotification, UserRole } from './types';
 import { INITIAL_USERS } from './constants';
 import { supabase } from './lib/supabase';
 
@@ -46,7 +48,9 @@ const App: React.FC = () => {
 
   const [users, setUsers] = useState<User[]>(INITIAL_USERS);
   const [bookings, setBookings] = useState<TrainingBooking[]>([]);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(window.innerWidth >= 1024);
+  
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  
   const [isBookingModalOpen, setIsBookingModalOpen] = useState(false);
   const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
   const [selectedBookingForEdit, setSelectedBookingForEdit] = useState<TrainingBooking | null>(null);
@@ -66,8 +70,28 @@ const App: React.FC = () => {
   });
 
   useEffect(() => {
+    if (isLoggedIn && currentUser && currentUser.role === UserRole.SUPER_ADMIN) {
+      const allModules = ['dashboard', 'mdb', 'ticket', 'bookings', 'reports', 'analytics', 'users', 'settings'];
+      const missingModules = allModules.filter(m => !currentUser.permissions.includes(m));
+      
+      if (missingModules.length > 0) {
+        const updatedUser = {
+          ...currentUser,
+          permissions: [...new Set([...currentUser.permissions, ...allModules])]
+        };
+        setCurrentUser(updatedUser);
+        localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(updatedUser));
+      }
+    }
+  }, [isLoggedIn, currentUser]);
+
+  useEffect(() => {
     localStorage.setItem(STORAGE_KEYS.NOTIFS, JSON.stringify(notifications));
   }, [notifications]);
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEYS.TAB, activeTab);
+  }, [activeTab]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -87,7 +111,7 @@ const App: React.FC = () => {
       title,
       message,
       type,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: true }),
       read: false
     };
     setNotifications(prev => [newNotif, ...prev.slice(0, 19)]); 
@@ -163,7 +187,6 @@ const App: React.FC = () => {
         if (delErr) throw delErr;
       }
       
-      // Sync truth from DB after update
       await fetchData();
       addNotification('KAM Registry Updated', `Registry synchronized successfully.`, 'success');
     } catch (err: any) {
@@ -187,7 +210,6 @@ const App: React.FC = () => {
         if (delErr) throw delErr;
       }
       
-      // Sync truth from DB after update
       await fetchData();
       addNotification('Package Master Updated', `Registry synchronized successfully.`, 'success');
     } catch (err: any) {
@@ -239,6 +261,8 @@ const App: React.FC = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'dashboard': return <Dashboard bookings={bookings} users={users} />;
+      case 'mdb': return <MDBMasterHub />;
+      case 'ticket': return <TicketModule />;
       case 'bookings': return (
         <BookingList 
           bookings={bookings} 
@@ -265,6 +289,10 @@ const App: React.FC = () => {
             await supabase.from('users').update({ password: pw }).eq('id', id);
             setUsers(prev => prev.map(u => u.id === id ? { ...u, password: pw } : u));
             addNotification('Security Update', `Password updated for user ID: ${id}.`, 'info');
+          }}
+          onUpdatePermissions={async (id, permissions) => {
+            await supabase.from('users').update({ permissions }).eq('id', id);
+            fetchData();
           }}
           onDeleteUser={async (id) => { await supabase.from('users').delete().eq('id', id); fetchData(); }}
         />
@@ -314,7 +342,7 @@ const App: React.FC = () => {
         setIsOpen={setIsSidebarOpen}
       />
       <main className={`flex-1 flex flex-col transition-all duration-300 ease-in-out ${isSidebarOpen ? 'lg:ml-56' : 'ml-0'}`}>
-        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-30 shadow-sm">
+        <header className="h-16 bg-white border-b border-slate-200 flex items-center justify-between px-4 md:px-8 sticky top-0 z-50 shadow-sm">
           <div className="flex items-center space-x-2 md:space-x-4">
             <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="p-2 hover:bg-slate-100 rounded-lg text-slate-500">
               <Menu size={20} />
@@ -342,19 +370,19 @@ const App: React.FC = () => {
               </button>
 
               {showNotifications && (
-                <div className="absolute top-full right-0 mt-2 w-80 md:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-[100] animate-in fade-in slide-in-from-top-2 duration-200">
-                  <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex items-center justify-between">
+                <div className="absolute top-full right-0 mt-2 w-80 md:w-96 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden z-[110] animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="p-4 border-b border-slate-100 bg-slate-50/80 flex items-center justify-between">
                     <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Notifications</h4>
                     <div className="flex space-x-3">
                       <button onClick={markAllRead} className="text-[10px] font-bold text-blue-600 hover:underline">Mark all read</button>
                       <button onClick={clearNotifications} className="text-[10px] font-bold text-slate-400 hover:text-red-500">Clear</button>
                     </div>
                   </div>
-                  <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                  <div className="max-h-[400px] overflow-y-auto custom-scrollbar bg-white">
                     {notifications.length > 0 ? (
                       <div className="divide-y divide-slate-100">
                         {notifications.map((n) => (
-                          <div key={n.id} className={`p-4 flex items-start space-x-3 hover:bg-slate-50 transition-colors relative ${!n.read ? 'bg-blue-50/30' : ''}`}>
+                          <div key={n.id} className={`p-4 flex items-start space-x-3 hover:bg-slate-50 transition-colors relative ${!n.read ? 'bg-blue-50/20' : ''}`}>
                             <div className={`p-2 rounded-lg shrink-0 ${
                               n.type === 'success' ? 'bg-green-100 text-green-600' : 
                               n.type === 'warning' ? 'bg-orange-100 text-orange-600' : 
@@ -406,7 +434,7 @@ const App: React.FC = () => {
           </div>
         </header>
 
-        <div className="p-4 md:p-8 pb-20 max-w-7xl mx-auto w-full flex-1">
+        <div className="p-4 md:p-6 pb-20 w-full flex-1 max-w-7xl mx-auto custom-scrollbar overflow-y-auto overflow-x-hidden">
           {renderContent()}
         </div>
 

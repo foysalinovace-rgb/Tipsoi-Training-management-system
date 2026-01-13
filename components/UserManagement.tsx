@@ -23,7 +23,9 @@ import {
   Settings as SettingsIcon,
   ShieldIcon,
   User as UserIcon,
-  Lock
+  Lock,
+  Database,
+  Ticket as TicketIcon
 } from 'lucide-react';
 
 interface UserManagementProps {
@@ -32,11 +34,14 @@ interface UserManagementProps {
   onUpdateUser: (user: User) => void;
   onUpdateRole: (userId: string, newRole: UserRole) => void;
   onUpdatePassword: (userId: string, newPassword: string) => void;
+  onUpdatePermissions: (userId: string, permissions: string[]) => void;
   onDeleteUser: (userId: string) => void;
 }
 
 const MODULES = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'mdb', label: 'Sales Ticket', icon: Database },
+  { id: 'ticket', label: 'Ticket', icon: TicketIcon },
   { id: 'bookings', label: 'Training Bookings', icon: BookOpenCheck },
   { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -248,7 +253,6 @@ const UserManagement: React.FC<UserManagementProps> = ({
         </table>
       </div>
 
-      {/* Syncing style with BookingModal */}
       {(showAddModal || showEditModal.isOpen) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">

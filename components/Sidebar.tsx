@@ -8,7 +8,9 @@ import {
   Users as UsersIcon,
   Settings as SettingsIcon,
   FileSpreadsheet,
-  X
+  X,
+  Database,
+  Ticket as TicketIcon
 } from 'lucide-react';
 import { User, SystemSettings } from '../types';
 
@@ -25,6 +27,8 @@ interface SidebarProps {
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser, onLogout, systemSettings, isOpen, setIsOpen }) => {
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+    { id: 'mdb', label: 'Sales Ticket', icon: Database },
+    { id: 'ticket', label: 'Ticket', icon: TicketIcon },
     { id: 'bookings', label: 'Training Bookings', icon: BookOpenCheck },
     { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
@@ -54,7 +58,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
         onClick={() => setIsOpen(false)}
       />
 
-      {/* Sidebar Container: Collapsible on all screens */}
+      {/* Sidebar Container */}
       <div className={`fixed left-0 top-0 h-screen bg-slate-900 text-white flex flex-col z-50 transition-all duration-300 ease-in-out w-56 ${
         isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
       } overflow-hidden`}>
@@ -65,7 +69,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
                 <img src={systemSettings.logo} alt="Logo" className="w-full h-full object-contain" />
               </div>
             )}
-            <h1 className="text-lg font-bold tracking-tight text-blue-400 line-clamp-1 whitespace-nowrap">{systemSettings.panelName}</h1>
+            <h1 className="text-lg font-bold tracking-tight text-blue-400 line-clamp-1 whitespace-nowrap uppercase tracking-tighter">
+              {systemSettings.panelName}
+            </h1>
           </div>
           <button 
             onClick={() => setIsOpen(false)}
@@ -75,7 +81,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
           </button>
         </div>
         
-        <nav className="flex-1 mt-6 px-4 space-y-1.5 overflow-y-auto custom-scrollbar">
+        <nav className="flex-1 mt-6 px-4 space-y-1.5 overflow-y-auto no-scrollbar">
           {filteredMenu.map((item) => (
             <button
               key={item.id}

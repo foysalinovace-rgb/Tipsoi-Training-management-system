@@ -14,6 +14,6 @@ export const INITIAL_USERS: User[] = [
     password: '123456', 
     role: UserRole.SUPER_ADMIN,
     avatar: '',
-    permissions: ['dashboard', 'bookings', 'reports', 'analytics', 'users', 'settings']
+    permissions: ['dashboard', 'mdb', 'ticket', 'bookings', 'reports', 'analytics', 'users', 'settings']
   }
 ];

@@ -17,6 +17,16 @@ const getLocalDateString = () => {
   return `${year}-${month}-${day}`;
 };
 
+const formatTo12h = (time24: string) => {
+  if (!time24) return "";
+  const [hours, minutes] = time24.split(':');
+  let h = parseInt(hours);
+  const m = minutes;
+  const ampm = h >= 12 ? 'PM' : 'AM';
+  h = h % 12 || 12;
+  return `${h}:${m} ${ampm}`;
+};
+
 const CountdownTimer: React.FC<{ startTime: string; duration: number; date: string }> = ({ startTime, duration, date }) => {
   const [timeLeft, setTimeLeft] = useState<string>('');
   const [statusLabel, setStatusLabel] = useState<string>('Upcoming');
@@ -188,7 +198,6 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Real-time Occupancy */}
         <div className="lg:col-span-5 xl:col-span-4 bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
           <div className="p-4 border-b border-slate-100 bg-red-50/20 flex items-center space-x-3">
             <div className="p-2 bg-red-600 text-white rounded-lg shadow-lg shadow-red-500/20">
@@ -233,7 +242,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
                         <div key={sIdx} className="bg-white p-2.5 rounded-xl border border-blue-100 flex flex-col space-y-1 shadow-sm">
                           <p className="text-[9px] font-black text-slate-800 uppercase leading-none truncate">{slot.title}</p>
                           <div className="flex justify-between items-center">
-                            <p className="text-[8px] text-slate-400 font-bold">{slot.time}</p>
+                            <p className="text-[8px] text-slate-400 font-bold">{formatTo12h(slot.time)}</p>
                             <CountdownTimer startTime={slot.time} duration={slot.duration} date={slot.date} />
                           </div>
                         </div>
@@ -246,7 +255,6 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
           </div>
         </div>
 
-        {/* Schedule & Upcoming */}
         <div className="lg:col-span-7 xl:col-span-8 space-y-6">
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
             <div className="p-4 border-b border-slate-100 bg-amber-50/20 flex flex-col sm:flex-row sm:items-center justify-between gap-2">
@@ -278,7 +286,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
                             <span className="text-[8px] font-black px-1.5 py-0.5 rounded-full border bg-blue-50 text-blue-600 border-blue-100 uppercase tracking-tighter shrink-0">In Progress</span>
                           </div>
                           <p className="text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
-                            {training.clientName} <span className="mx-1 text-slate-300">|</span> <span className="text-slate-800 font-bold">{training.startTime}</span> <span className="mx-1 text-slate-300">|</span> {training.assignedPerson}
+                            {training.clientName} <span className="mx-1 text-slate-300">|</span> <span className="text-slate-800 font-bold">{formatTo12h(training.startTime)}</span> <span className="mx-1 text-slate-300">|</span> {training.assignedPerson}
                           </p>
                         </div>
                       </div>
@@ -330,7 +338,7 @@ const Dashboard: React.FC<DashboardProps> = ({ bookings, users }) => {
                             </span>
                           </div>
                           <p className="text-[11px] text-slate-500 font-semibold mt-0.5 truncate">
-                            {training.clientName} <span className="mx-1 text-slate-300">|</span> <span className="text-slate-800 font-bold">{training.startTime}</span> <span className="mx-1 text-slate-300">|</span> {training.assignedPerson}
+                            {training.clientName} <span className="mx-1 text-slate-300">|</span> <span className="text-slate-800 font-bold">{formatTo12h(training.startTime)}</span> <span className="mx-1 text-slate-300">|</span> {training.assignedPerson}
                           </p>
                         </div>
                       </div>
