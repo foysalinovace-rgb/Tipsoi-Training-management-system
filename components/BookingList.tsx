@@ -97,6 +97,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
     const startOffset = new Date(year, month, 1).getDay();
     
     const days = [];
+    // Padding days for grid alignment
     for (let i = 0; i < startOffset; i++) days.push({ day: null, dateStr: '' });
     for (let i = 1; i <= totalDays; i++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
@@ -106,7 +107,6 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
   };
 
   const calendarData = useMemo(() => getCalendarDays(currentMonth), [currentMonth]);
-  const rangeCalendarData = useMemo(() => getCalendarDays(rangeCalendarMonth), [rangeCalendarMonth]);
 
   const changeMonth = (offset: number) => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1));
   const changeRangeMonth = (offset: number) => setRangeCalendarMonth(new Date(rangeCalendarMonth.getFullYear(), rangeCalendarMonth.getMonth() + offset, 1));
@@ -148,9 +148,9 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
         </button>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col">
-        {/* Responsive Filter Bar */}
-        <div className="p-4 border-b border-slate-100 bg-slate-50/30 flex flex-col lg:flex-row items-center gap-3 relative z-20">
+      {/* Container must NOT have overflow-hidden to allow calendar to overflow */}
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col relative z-10">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/30 flex flex-col lg:flex-row items-center gap-3 relative z-30 rounded-t-2xl">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
@@ -189,14 +189,14 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                   <div className="grid grid-cols-7 gap-1">
                     {calendarData.map((data, idx) => (
                       <div key={idx} className="aspect-square flex items-center justify-center">
-                        {data.day && (
+                        {data.day ? (
                           <button
                             onClick={() => { setSelectedDate(data.dateStr); setIsCalendarOpen(false); setIsRangeActive(false); }}
-                            className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center ${selectedDate === data.dateStr && !isRangeActive ? 'bg-blue-600 text-white' : 'hover:bg-slate-100 text-slate-600'}`}
+                            className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center ${selectedDate === data.dateStr && !isRangeActive ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-slate-100 text-slate-600'}`}
                           >
                             {data.day}
                           </button>
-                        )}
+                        ) : <div className="w-8 h-8" />}
                       </div>
                     ))}
                   </div>
@@ -216,7 +216,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
               </button>
 
               {isMoreOpen && (
-                <div className="absolute top-full right-0 mt-2 w-72 md:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2">
+                <div className="absolute top-full right-0 mt-2 w-72 md:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2 overflow-visible">
                   <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                     <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Advanced Filter</h4>
                   </div>
@@ -231,8 +231,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                           {rangeStartDate ? formatDateDisplay(rangeStartDate) : 'Select Start'}
                         </button>
                         {activeRangePicker === 'start' && (
-                          <div ref={rangePickerRef} className="absolute top-full left-0 mt-1 w-full bg-white rounded-xl shadow-2xl border border-slate-200 p-3 z-[60]">
-                            {/* Simplified Calendar Rendering */}
+                          <div ref={rangePickerRef} className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-3 z-[60]">
                             <div className="flex justify-between items-center mb-2">
                               <span className="text-[10px] font-black uppercase">{rangeCalendarMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}</span>
                               <div className="flex space-x-1">
@@ -241,10 +240,15 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                               </div>
                             </div>
                             <div className="grid grid-cols-7 gap-0.5 text-center">
-                              {getCalendarDays(rangeCalendarMonth).map((d, i) => d.day && (
-                                <button key={i} onClick={() => { setRangeStartDate(d.dateStr); setActiveRangePicker(null); }} className={`w-6 h-6 rounded text-[10px] font-bold ${rangeStartDate === d.dateStr ? 'bg-blue-600 text-white' : 'hover:bg-slate-100'}`}>
-                                  {d.day}
-                                </button>
+                              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d} className="text-[8px] font-black text-slate-300 uppercase">{d}</div>)}
+                              {getCalendarDays(rangeCalendarMonth).map((d, i) => (
+                                <div key={i} className="aspect-square flex items-center justify-center">
+                                  {d.day ? (
+                                    <button onClick={() => { setRangeStartDate(d.dateStr); setActiveRangePicker(null); }} className={`w-6 h-6 rounded text-[10px] font-bold ${rangeStartDate === d.dateStr ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-slate-100'}`}>
+                                      {d.day}
+                                    </button>
+                                  ) : <div className="w-6 h-6" />}
+                                </div>
                               ))}
                             </div>
                           </div>
@@ -259,7 +263,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                           {rangeEndDate ? formatDateDisplay(rangeEndDate) : 'Select End'}
                         </button>
                         {activeRangePicker === 'end' && (
-                          <div ref={rangePickerRef} className="absolute top-full left-0 mt-1 w-full bg-white rounded-xl shadow-2xl border border-slate-200 p-3 z-[60]">
+                          <div ref={rangePickerRef} className="absolute top-full right-0 mt-1 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-3 z-[60]">
                              <div className="flex justify-between items-center mb-2">
                               <span className="text-[10px] font-black uppercase">{rangeCalendarMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}</span>
                               <div className="flex space-x-1">
@@ -268,10 +272,15 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                               </div>
                             </div>
                             <div className="grid grid-cols-7 gap-0.5 text-center">
-                              {getCalendarDays(rangeCalendarMonth).map((d, i) => d.day && (
-                                <button key={i} onClick={() => { setRangeEndDate(d.dateStr); setActiveRangePicker(null); }} className={`w-6 h-6 rounded text-[10px] font-bold ${rangeEndDate === d.dateStr ? 'bg-blue-600 text-white' : 'hover:bg-slate-100'}`}>
-                                  {d.day}
-                                </button>
+                              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d} className="text-[8px] font-black text-slate-300 uppercase">{d}</div>)}
+                              {getCalendarDays(rangeCalendarMonth).map((d, i) => (
+                                <div key={i} className="aspect-square flex items-center justify-center">
+                                  {d.day ? (
+                                    <button onClick={() => { setRangeEndDate(d.dateStr); setActiveRangePicker(null); }} className={`w-6 h-6 rounded text-[10px] font-bold ${rangeEndDate === d.dateStr ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-slate-100'}`}>
+                                      {d.day}
+                                    </button>
+                                  ) : <div className="w-6 h-6" />}
+                                </div>
                               ))}
                             </div>
                           </div>
@@ -281,7 +290,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                   </div>
                   <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2">
                     <button onClick={() => { setRangeStartDate(''); setRangeEndDate(''); setIsRangeActive(false); setIsMoreOpen(false); }} className="px-4 py-2 border border-slate-200 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-colors">Reset</button>
-                    <button onClick={() => { if(rangeStartDate && rangeEndDate) { setIsRangeActive(true); setIsMoreOpen(false); }}} disabled={!rangeStartDate || !rangeEndDate} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50">Apply</button>
+                    <button onClick={() => { if(rangeStartDate && rangeEndDate) { setIsRangeActive(true); setIsMoreOpen(false); }}} disabled={!rangeStartDate || !rangeEndDate} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 disabled:opacity-50 shadow-lg shadow-blue-500/10">Apply</button>
                   </div>
                 </div>
               )}
@@ -289,7 +298,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
           </div>
         </div>
 
-        <div className={`px-4 md:px-6 py-2 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 ${isRangeActive ? 'bg-slate-900 text-white' : 'bg-blue-50/50'}`}>
+        <div className={`px-4 md:px-6 py-2 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 relative z-20 ${isRangeActive ? 'bg-slate-900 text-white' : 'bg-blue-50/50'}`}>
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${isRangeActive ? 'bg-blue-400 animate-pulse' : 'bg-blue-500'}`}></div>
             <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest truncate">
@@ -299,8 +308,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
           <span className="text-[9px] md:text-[10px] font-bold uppercase text-slate-400">{filteredBookings.length} Results</span>
         </div>
 
-        {/* Responsive Table Wrapper */}
-        <div className="overflow-x-auto custom-scrollbar">
+        <div className="overflow-x-auto custom-scrollbar rounded-b-2xl">
           <table className="w-full text-left min-w-[900px]">
             <thead>
               <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">

@@ -249,7 +249,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
         <div className="grid grid-cols-7 gap-1">
           {calendarData.map((data, idx) => (
             <div key={idx} className="aspect-square flex items-center justify-center">
-              {data.day && (
+              {data.day ? (
                 <button
                   type="button"
                   onClick={() => {
@@ -268,7 +268,7 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
                     <span className={`absolute bottom-0.5 w-0.5 h-0.5 rounded-full ${selectedDate === data.dateStr ? 'bg-white' : 'bg-blue-400'}`}></span>
                   )}
                 </button>
-              )}
+              ) : <div className="w-7 h-7" />}
             </div>
           ))}
         </div>

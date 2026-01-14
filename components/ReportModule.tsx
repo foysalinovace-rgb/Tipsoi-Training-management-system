@@ -102,7 +102,6 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
   };
 
   const calendarData = useMemo(() => getCalendarDays(currentMonth), [currentMonth]);
-  const rangeCalendarData = useMemo(() => getCalendarDays(rangeCalendarMonth), [rangeCalendarMonth]);
 
   const changeMonth = (offset: number) => {
     setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1));
@@ -270,8 +269,8 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
         </div>
       </div>
 
-      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden flex flex-col min-h-[600px]">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/30 flex flex-col md:flex-row items-center gap-4 relative z-20">
+      <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col min-h-[600px] relative z-10">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/30 flex flex-col md:flex-row items-center gap-4 relative z-40 rounded-t-2xl">
           <div className="relative flex-1 w-full">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
             <input 
@@ -300,7 +299,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
             {isCalendarOpen && (
               <div 
                 ref={calendarRef}
-                className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 animate-in fade-in slide-in-from-top-2 duration-200 z-50"
+                className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 animate-in fade-in slide-in-from-top-2 duration-200 z-[60]"
               >
                 <div className="flex items-center justify-between mb-4">
                   <span className="text-sm font-black text-slate-800 uppercase tracking-tighter">
@@ -321,7 +320,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
                 <div className="grid grid-cols-7 gap-1">
                   {calendarData.map((data, idx) => (
                     <div key={idx} className="aspect-square flex items-center justify-center">
-                      {data.day && (
+                      {data.day ? (
                         <button
                           onClick={() => {
                             setSelectedDate(data.dateStr);
@@ -330,16 +329,13 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
                           }}
                           className={`w-8 h-8 rounded-lg text-xs font-bold transition-all relative flex items-center justify-center ${
                             selectedDate === data.dateStr && !isRangeActive
-                              ? 'bg-blue-600 text-white' 
+                              ? 'bg-blue-600 text-white shadow-md' 
                               : 'hover:bg-slate-100 text-slate-600'
                           }`}
                         >
                           {data.day}
-                          {hasBookingsOnDate(data.dateStr) && (
-                            <span className={`absolute bottom-1 w-1 h-1 rounded-full ${selectedDate === data.dateStr && !isRangeActive ? 'bg-white' : 'bg-blue-400'}`}></span>
-                          )}
                         </button>
-                      )}
+                      ) : <div className="w-8 h-8" />}
                     </div>
                   ))}
                 </div>
@@ -362,7 +358,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
               </button>
 
               {isFilterOpen && (
-                <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-visible animate-in fade-in slide-in-from-top-2 duration-200 z-50">
+                <div className="absolute top-full right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-visible animate-in fade-in slide-in-from-top-2 duration-200 z-[60]">
                   <div className="p-4 border-b border-slate-100 bg-slate-50/50">
                     <h4 className="text-xs font-black text-slate-800 uppercase tracking-widest">Advanced Filter</h4>
                   </div>
@@ -377,6 +373,29 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
                         >
                           {rangeStartDate ? formatDateDisplay(rangeStartDate) : 'Select Date'}
                         </button>
+                        {activeRangePicker === 'start' && (
+                          <div ref={rangePickerRef} className="absolute top-full left-0 mt-1 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-3 z-[70]">
+                            <div className="flex justify-between items-center mb-2">
+                              <span className="text-[10px] font-black uppercase">{rangeCalendarMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}</span>
+                              <div className="flex space-x-1">
+                                <button onClick={() => changeRangeMonth(-1)}><ChevronLeft size={14}/></button>
+                                <button onClick={() => changeRangeMonth(1)}><ChevronRight size={14}/></button>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-7 gap-0.5 text-center">
+                              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d} className="text-[8px] font-black text-slate-300 uppercase">{d}</div>)}
+                              {getCalendarDays(rangeCalendarMonth).map((d, i) => (
+                                <div key={i} className="aspect-square flex items-center justify-center">
+                                  {d.day ? (
+                                    <button onClick={() => { setRangeStartDate(d.dateStr); setActiveRangePicker(null); }} className={`w-6 h-6 rounded text-[10px] font-bold ${rangeStartDate === d.dateStr ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-slate-100'}`}>
+                                      {d.day}
+                                    </button>
+                                  ) : <div className="w-6 h-6" />}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                       <div className="space-y-1 relative">
                         <label className="text-[9px] font-bold text-slate-500 uppercase">To</label>
@@ -387,12 +406,35 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
                         >
                           {rangeEndDate ? formatDateDisplay(rangeEndDate) : 'Select Date'}
                         </button>
+                        {activeRangePicker === 'end' && (
+                          <div ref={rangePickerRef} className="absolute top-full right-0 mt-1 w-64 bg-white rounded-xl shadow-2xl border border-slate-200 p-3 z-[70]">
+                             <div className="flex justify-between items-center mb-2">
+                              <span className="text-[10px] font-black uppercase">{rangeCalendarMonth.toLocaleString('default', { month: 'short', year: 'numeric' })}</span>
+                              <div className="flex space-x-1">
+                                <button onClick={() => changeRangeMonth(-1)}><ChevronLeft size={14}/></button>
+                                <button onClick={() => changeRangeMonth(1)}><ChevronRight size={14}/></button>
+                              </div>
+                            </div>
+                            <div className="grid grid-cols-7 gap-0.5 text-center">
+                              {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d} className="text-[8px] font-black text-slate-300 uppercase">{d}</div>)}
+                              {getCalendarDays(rangeCalendarMonth).map((d, i) => (
+                                <div key={i} className="aspect-square flex items-center justify-center">
+                                  {d.day ? (
+                                    <button onClick={() => { setRangeEndDate(d.dateStr); setActiveRangePicker(null); }} className={`w-6 h-6 rounded text-[10px] font-bold ${rangeEndDate === d.dateStr ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-slate-100'}`}>
+                                      {d.day}
+                                    </button>
+                                  ) : <div className="w-6 h-6" />}
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   </div>
                   <div className="p-4 bg-slate-50 border-t border-slate-100 grid grid-cols-2 gap-2">
                     <button onClick={handleClearRange} className="px-4 py-2 bg-white border border-slate-200 text-slate-500 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-100 transition-colors">Reset</button>
-                    <button onClick={handleApplyRange} disabled={!rangeStartDate || !rangeEndDate} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700">Apply</button>
+                    <button onClick={handleApplyRange} disabled={!rangeStartDate || !rangeEndDate} className="px-4 py-2 bg-blue-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-700 shadow-lg shadow-blue-500/10">Apply</button>
                   </div>
                 </div>
               )}
@@ -400,7 +442,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
           </div>
         </div>
 
-        <div className={`px-6 py-2.5 border-b border-slate-100 flex items-center justify-between ${isRangeActive ? 'bg-slate-900 text-white' : 'bg-blue-50/50'}`}>
+        <div className={`px-6 py-2.5 border-b border-slate-100 flex items-center justify-between relative z-20 ${isRangeActive ? 'bg-slate-900 text-white' : 'bg-blue-50/50'}`}>
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full animate-pulse ${isRangeActive ? 'bg-blue-400' : 'bg-blue-500'}`}></div>
             <span className={`text-[10px] font-black uppercase tracking-widest ${isRangeActive ? 'text-blue-200' : 'text-blue-700'}`}>
@@ -417,7 +459,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
           </div>
         </div>
 
-        <div className="overflow-x-auto">
+        <div className="overflow-x-auto rounded-b-2xl">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
@@ -482,7 +524,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
           </table>
         </div>
 
-        <div className="mt-auto p-4 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest">
+        <div className="mt-auto p-4 border-t border-slate-100 bg-slate-50/30 flex items-center justify-between text-[10px] font-black text-slate-400 uppercase tracking-widest shrink-0 rounded-b-2xl">
           <div className="flex space-x-4">
             <span>Total Shown: {filteredData.length}</span>
             <span>Last Sync: {new Date().toLocaleTimeString('en-US', { hour12: true })}</span>
