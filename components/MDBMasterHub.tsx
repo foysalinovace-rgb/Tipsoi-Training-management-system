@@ -12,8 +12,12 @@ import {
   Calendar
 } from 'lucide-react';
 
+/* Defined precise types for MDB records to avoid 'unknown' inference in search filters */
 interface MDBRecord {
-  [key: string]: any;
+  [key: string]: {
+    value: any;
+    index: number;
+  };
 }
 
 const SHEET_ID = '1l8B6jdStatgm0sItoFHMHoQTNh7n5VjnuvNDVMR4d3A';
@@ -130,8 +134,9 @@ const MDBMasterHub: React.FC = () => {
   const filteredData = useMemo(() => {
     if (!searchTerm) return data;
     const lowerSearch = searchTerm.toLowerCase();
+    /* Fix: Explicitly cast 'cell' to 'any' to resolve the 'unknown' property access error on line 134 */
     return data.filter(row => 
-      Object.values(row).some(cell => String(cell.value).toLowerCase().includes(lowerSearch))
+      Object.values(row).some((cell: any) => String(cell.value).toLowerCase().includes(lowerSearch))
     );
   }, [data, searchTerm]);
 
@@ -179,7 +184,6 @@ const MDBMasterHub: React.FC = () => {
           </div>
 
           <div className="flex items-center space-x-3">
-            {/* Buttons moved before LIVE SYNC */}
             <button 
               onClick={() => fetchData()}
               disabled={isRefreshing}
@@ -226,11 +230,11 @@ const MDBMasterHub: React.FC = () => {
           </div>
         ) : (
           <div className="h-full overflow-auto custom-scrollbar bg-white">
-            <table className="w-full text-left border-collapse table-fixed min-w-[1400px]">
+            <table className="w-full text-left border-collapse table-fixed min-w-[1400px] border-l border-t border-slate-100">
               <thead className="sticky top-0 z-20">
-                <tr className="bg-white border-b border-slate-100">
+                <tr className="bg-slate-50/90 backdrop-blur-sm">
                   {headers.map((header, idx) => (
-                    <th key={idx} className="px-5 py-2 text-[8px] font-black text-slate-400 uppercase tracking-tight first:pl-6">
+                    <th key={idx} className="px-5 py-2 text-[8px] font-black text-slate-500 uppercase tracking-tight border-r border-b border-slate-200">
                       <div className="flex items-center justify-between">
                         <span>{header}</span>
                       </div>
@@ -238,12 +242,12 @@ const MDBMasterHub: React.FC = () => {
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-50">
+              <tbody>
                 {isLoading ? (
                   Array.from({ length: 20 }).map((_, i) => (
                     <tr key={i}>
                       {Array.from({ length: TARGET_COLUMNS.length }).map((_, j) => (
-                        <td key={j} className="px-5 py-2 first:pl-6">
+                        <td key={j} className="px-5 py-2 border-r border-b border-slate-50">
                           <div className="h-1.5 bg-slate-50 rounded-full w-full animate-pulse"></div>
                         </td>
                       ))}
@@ -251,9 +255,9 @@ const MDBMasterHub: React.FC = () => {
                   ))
                 ) : (
                   filteredData.map((row, rIdx) => (
-                    <tr key={rIdx} className="hover:bg-slate-50 transition-colors group">
+                    <tr key={rIdx} className="hover:bg-indigo-50/30 transition-colors group">
                       {headers.map((header, cIdx) => (
-                        <td key={cIdx} className="px-5 py-2 first:pl-6">
+                        <td key={cIdx} className="px-5 py-2 border-r border-b border-slate-100/60">
                           {renderCell(row[header])}
                         </td>
                       ))}
