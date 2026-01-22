@@ -148,12 +148,12 @@ const App: React.FC = () => {
   };
 
   const handleUpdateSystemSettings = async (newSettings: SystemSettings) => {
-    // 1. Update UI and Local Storage first for immediate feedback
+    // 1. Update UI and Local Storage immediately
     setSystemSettings(newSettings);
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
 
-    // 2. Prepare precise payload for Supabase to avoid schema mismatch
-    const payload = {
+    // 2. Initial Full Payload
+    const fullPayload = {
       id: 1,
       panelName: newSettings.panelName,
       slotCapacity: newSettings.slotCapacity,
@@ -162,17 +162,39 @@ const App: React.FC = () => {
     };
 
     try {
-      const { error } = await supabase.from('settings').upsert(payload, { onConflict: 'id' });
+      // First attempt: Try to save everything
+      const { error } = await supabase.from('settings').upsert(fullPayload, { onConflict: 'id' });
+      
       if (error) {
-        console.error("Supabase Save Error Details:", error);
-        alert(`Server Error: ${error.message || 'Check connection'}. Data is saved locally for now.`);
+        console.warn("Full save failed, checking for column mismatch:", error);
+        
+        // Check if the error is specifically about 'slotCapacity' column missing in the database
+        if (error.message.includes('slotCapacity') || error.code === '42703') {
+           // Second attempt: Minimal payload (Remove slotCapacity if it doesn't exist in DB)
+           const minimalPayload = {
+             id: 1,
+             panelName: newSettings.panelName,
+             tutorials: newSettings.tutorials,
+             logo: newSettings.logo || ''
+           };
+           
+           const { error: retryError } = await supabase.from('settings').upsert(minimalPayload, { onConflict: 'id' });
+           if (retryError) {
+             console.error("Retry also failed:", retryError);
+             alert("Error saving tutorials. Please contact developer to update database schema.");
+           } else {
+             console.log("Successfully saved with minimal payload.");
+             await fetchData();
+           }
+        } else {
+          alert(`Server Error: ${error.message}. Changes saved locally.`);
+        }
       } else {
-        // Success - optionally re-fetch to sync
         await fetchData();
       }
     } catch (err) {
-      console.error("Failed to save settings to server:", err);
-      alert("Network Error: Data saved locally. Please check your internet connection.");
+      console.error("Network or unexpected error:", err);
+      alert("Changes saved to your browser, but failed to sync with server. Check internet connection.");
     }
   };
 
