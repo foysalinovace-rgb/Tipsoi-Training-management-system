@@ -1,14 +1,15 @@
 
 import React, { useState } from 'react';
-import { Lock, Mail, Loader2, AlertCircle, Eye, EyeOff, LogIn, ShieldAlert, X } from 'lucide-react';
+import { Lock, Mail, Loader2, AlertCircle, Eye, EyeOff, LogIn, ShieldAlert, X, ArrowLeft } from 'lucide-react';
 import { User } from '../types';
 
 interface LoginProps {
   onLogin: (user: User) => void;
   users: User[];
+  onBack?: () => void;
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, users, onBack }) => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -41,9 +42,20 @@ const Login: React.FC<LoginProps> = ({ onLogin, users }) => {
       
       <div className="w-full max-w-[480px] z-10">
         <div className="bg-white/80 backdrop-blur-2xl rounded-[3rem] shadow-[0_32px_64px_-16px_rgba(0,0,0,0.1)] border border-white/50 overflow-hidden animate-in fade-in zoom-in-95 duration-700">
-          <div className="p-10 flex flex-col items-center">
+          <div className="p-10 flex flex-col items-center relative">
+            
+            {onBack && (
+              <button 
+                onClick={onBack}
+                className="absolute top-8 left-8 flex items-center text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-blue-600 transition-colors"
+              >
+                <ArrowLeft size={14} className="mr-1" />
+                Back to Booking
+              </button>
+            )}
+
             {/* Top Icon Area */}
-            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-8">
+            <div className="w-16 h-16 bg-white rounded-2xl shadow-sm border border-slate-100 flex items-center justify-center mb-8 mt-4">
               <LogIn className="text-slate-800" size={28} />
             </div>
 

@@ -14,13 +14,32 @@ export enum BookingStatus {
   CANCELLED = 'Cancelled',
   REQUESTED = 'Requested',
   APPROVED = 'Approved',
-  COMPLETED = 'Completed'
+  COMPLETED = 'Completed',
+  PENDING = 'Pending'
 }
 
 export enum TrainingType {
   ONLINE = 'Online',
   ON_SITE = 'On-site',
   HYBRID = 'Hybrid'
+}
+
+export interface TrainingSlot {
+  id: string;
+  time: string;
+  isActive: boolean;
+}
+
+export interface PublicBooking {
+  id: string;
+  clientName: string;
+  companyName: string;
+  phoneNumber: string;
+  date: string;
+  slotId: string;
+  slotTime: string;
+  status: BookingStatus;
+  createdAt: string;
 }
 
 export interface AppNotification {
@@ -58,6 +77,8 @@ export interface KAM {
 export interface TrainingBooking {
   id: string; 
   clientName: string; 
+  companyName?: string;
+  phoneNumber?: string;
   assignedPerson: string;
   kamName: string; 
   title: string;
@@ -95,4 +116,5 @@ export interface User {
 export interface SystemSettings {
   panelName: string;
   logo: string;
+  slotCapacity: number;
 }
