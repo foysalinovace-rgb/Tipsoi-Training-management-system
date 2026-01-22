@@ -29,6 +29,9 @@ export interface TrainingSlot {
   time: string;
   isActive: boolean;
   capacity: number;
+  date: string; // ISO string for the specific date
+  // Optional flag used in the UI to identify slots that haven't been saved to the database yet
+  isVirtual?: boolean;
 }
 
 export interface AppNotification {

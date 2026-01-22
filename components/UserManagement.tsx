@@ -24,8 +24,7 @@ import {
   ShieldIcon,
   User as UserIcon,
   Lock,
-  Database,
-  Ticket as TicketIcon
+  Database
 } from 'lucide-react';
 
 interface UserManagementProps {
@@ -41,7 +40,6 @@ interface UserManagementProps {
 const MODULES = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'mdb', label: 'Sales Ticket', icon: Database },
-  { id: 'ticket', label: 'Ticket', icon: TicketIcon },
   { id: 'bookings', label: 'Training Bookings', icon: BookOpenCheck },
   { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
   { id: 'analytics', label: 'Analytics', icon: BarChart3 },

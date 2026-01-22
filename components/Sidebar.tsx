@@ -10,8 +10,11 @@ import {
   FileSpreadsheet,
   X,
   Database,
-  Ticket as TicketIcon,
-  ClipboardList
+  ClipboardList,
+  Video,
+  UserCheck,
+  Package,
+  Clock
 } from 'lucide-react';
 import { User, SystemSettings } from '../types';
 
@@ -29,18 +32,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { id: 'mdb', label: 'Sales Ticket', icon: Database },
-    { id: 'ticket', label: 'Ticket', icon: TicketIcon },
     { id: 'bookings', label: 'Training Bookings', icon: BookOpenCheck },
     { id: 'slot-report', label: 'Slot Report', icon: ClipboardList },
+    { id: 'tutorials', label: 'Tutorials', icon: Video },
+    { id: 'kam', label: 'KAM Master', icon: UserCheck },
+    { id: 'packages', label: 'Packages', icon: Package },
+    { id: 'slots', label: 'Session Slots', icon: Clock },
     { id: 'reports', label: 'Reports', icon: FileSpreadsheet },
     { id: 'analytics', label: 'Analytics', icon: BarChart3 },
     { id: 'users', label: 'User Management', icon: UsersIcon },
     { id: 'settings', label: 'Settings', icon: SettingsIcon },
   ];
-
-  const filteredMenu = menuItems.filter(item => 
-    currentUser.permissions?.includes(item.id) || currentUser.permissions?.includes('all') || true // Allowing for now or check perms
-  );
 
   const handleTabClick = (tabId: string) => {
     setActiveTab(tabId);
@@ -63,7 +65,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
       } overflow-hidden`}>
         <div className="p-6 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3 overflow-hidden">
-            <h1 className="text-sm font-black tracking-tight text-blue-400 line-clamp-1 whitespace-nowrap tracking-tighter">
+            <h1 className="text-sm font-black tracking-tight text-blue-400 line-clamp-1 whitespace-nowrap tracking-tighter uppercase">
               {systemSettings.panelName}
             </h1>
           </div>
@@ -75,8 +77,8 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
           </button>
         </div>
         
-        <nav className="flex-1 mt-6 px-4 space-y-1 overflow-y-auto no-scrollbar">
-          {filteredMenu.map((item) => (
+        <nav className="flex-1 mt-6 px-4 space-y-1 overflow-y-auto no-scrollbar pb-10">
+          {menuItems.map((item) => (
             <button
               key={item.id}
               onClick={() => handleTabClick(item.id)}
@@ -87,7 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
               }`}
             >
               <item.icon size={16} className={activeTab === item.id ? 'text-white' : 'text-slate-500'} />
-              <span className="font-bold text-[11px] whitespace-nowrap uppercase tracking-tight">{item.label}</span>
+              <span className="font-bold text-[10px] whitespace-nowrap uppercase tracking-tight">{item.label}</span>
             </button>
           ))}
         </nav>
@@ -98,7 +100,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
             className="w-full flex items-center space-x-3 px-4 py-3 text-slate-500 hover:text-red-400 transition-colors group"
           >
             <LogOut size={16} className="group-hover:translate-x-1 transition-transform" />
-            <span className="font-bold text-[11px] tracking-wide whitespace-nowrap uppercase">Sign Out</span>
+            <span className="font-bold text-[10px] tracking-wide whitespace-nowrap uppercase">Sign Out</span>
           </button>
         </div>
       </div>

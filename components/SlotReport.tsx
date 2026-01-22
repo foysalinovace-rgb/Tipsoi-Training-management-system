@@ -26,9 +26,8 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete }) =
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const slotBookings = bookings.filter(b => b.category === 'Public Request' || b.id.startsWith('PUB-'));
-
-  const filtered = slotBookings.filter(b => 
+  // Updated to show all bookings instead of just public requests
+  const filtered = bookings.filter(b => 
     b.clientName.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (b.companyName && b.companyName.toLowerCase().includes(searchTerm.toLowerCase())) ||
     (b.notes && b.notes.toLowerCase().includes(searchTerm.toLowerCase())) ||
@@ -44,22 +43,12 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete }) =
     }
   };
 
-  const getDisplayCompany = (booking: TrainingBooking) => {
-    if (booking.companyName) return booking.companyName;
-    // Fallback: extract from notes if present
-    if (booking.notes && booking.notes.includes('Company: ')) {
-      const match = booking.notes.match(/Company: (.*?) \|/);
-      return match ? match[1] : booking.notes.split('|')[0].replace('Company: ', '').trim();
-    }
-    return 'N/A';
-  };
-
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Slot Booking Report</h2>
-          <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Public & External Session Management</p>
+          <p className="text-[11px] text-slate-500 font-bold uppercase tracking-widest">Global Session Management</p>
         </div>
         <div className="flex items-center space-x-2">
           <div className="px-4 py-2 bg-blue-50 text-blue-600 rounded-xl border border-blue-100 text-[10px] font-black uppercase tracking-widest">
@@ -105,12 +94,12 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete }) =
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
                       <Building2 size={14} className="text-slate-400" />
-                      <span className="text-xs font-bold text-slate-800 truncate max-w-[150px]">{getDisplayCompany(booking)}</span>
+                      <span className="text-xs font-bold text-slate-800 truncate max-w-[150px]">{booking.clientName}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col">
-                      <span className="text-xs font-bold text-slate-700">{booking.clientName}</span>
+                      <span className="text-xs font-bold text-slate-700">{booking.assignedPerson}</span>
                     </div>
                   </td>
                   <td className="px-6 py-4">
@@ -159,7 +148,7 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete }) =
                 <AlertTriangle size={32} />
               </div>
               <h3 className="text-xl font-bold text-slate-800 uppercase tracking-tight">Confirm Deletion</h3>
-              <p className="text-slate-500 text-xs mt-2 leading-relaxed">Remove public booking <span className="text-slate-900 font-bold">{deleteConfirmId}</span>? This data will be removed from the master report.</p>
+              <p className="text-slate-500 text-xs mt-2 leading-relaxed">Remove booking <span className="text-slate-900 font-bold">{deleteConfirmId}</span>? This data will be removed from all reports.</p>
             </div>
             <div className="p-4 bg-slate-50 grid grid-cols-2 gap-2">
               <button onClick={() => setDeleteConfirmId(null)} className="py-2.5 bg-white border border-slate-200 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-xl">Cancel</button>

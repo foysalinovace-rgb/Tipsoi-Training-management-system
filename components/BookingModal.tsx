@@ -299,9 +299,8 @@ const BookingModal: React.FC<BookingModalProps> = ({ isOpen, onClose, onSubmit, 
                 <input 
                   required
                   type="text" 
-                  readOnly={!!bookingToEdit}
                   placeholder={isSheetLoading ? "Syncing ID database..." : "Enter or auto-fill ID"}
-                  className={`w-full px-3 py-1.5 rounded-lg border border-slate-200 outline-none transition-all text-xs font-mono font-bold ${bookingToEdit ? 'bg-slate-50 text-slate-400 cursor-not-allowed' : 'bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10'}`}
+                  className="w-full px-3 py-1.5 rounded-lg border border-slate-200 outline-none transition-all text-xs font-mono font-bold bg-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10"
                   value={formData.ticketId}
                   onChange={e => setFormData({...formData, ticketId: e.target.value})}
                 />
