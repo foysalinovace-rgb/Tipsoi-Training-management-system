@@ -59,7 +59,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, users, onBack }) => {
               <LogIn className="text-slate-800" size={28} />
             </div>
 
-            <h1 className="text-3xl font-bold text-slate-900 mb-1">TIPSOI CST</h1>
+            <h1 className="text-3xl font-bold text-slate-900 mb-1 tracking-tight">Tipsoi CST</h1>
             <p className="text-slate-400 text-center text-[10px] font-black uppercase tracking-[0.2em] mb-10 leading-relaxed">
               training management system
             </p>

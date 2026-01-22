@@ -63,7 +63,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, currentUser,
       } overflow-hidden`}>
         <div className="p-6 border-b border-slate-800 flex items-center justify-between shrink-0">
           <div className="flex items-center space-x-3 overflow-hidden">
-            <h1 className="text-sm font-black tracking-tight text-blue-400 line-clamp-1 whitespace-nowrap uppercase tracking-tighter">
+            <h1 className="text-sm font-black tracking-tight text-blue-400 line-clamp-1 whitespace-nowrap tracking-tighter">
               {systemSettings.panelName}
             </h1>
           </div>

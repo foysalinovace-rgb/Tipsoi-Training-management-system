@@ -28,18 +28,7 @@ export interface TrainingSlot {
   id: string;
   time: string;
   isActive: boolean;
-}
-
-export interface PublicBooking {
-  id: string;
-  clientName: string;
-  companyName: string;
-  phoneNumber: string;
-  date: string;
-  slotId: string;
-  slotTime: string;
-  status: BookingStatus;
-  createdAt: string;
+  capacity: number;
 }
 
 export interface AppNotification {
@@ -49,29 +38,6 @@ export interface AppNotification {
   timestamp: string;
   read: boolean;
   title: string;
-}
-
-export interface Client {
-  id: string;
-  name: string;
-  company: string;
-  email: string;
-  contact: string;
-  address: string;
-}
-
-export interface Trainer {
-  id: string;
-  name: string;
-  email: string;
-  expertise: string[];
-}
-
-export interface KAM {
-  id: string;
-  name: string;
-  role: string;
-  contact: string;
 }
 
 export interface TrainingBooking {
@@ -113,8 +79,42 @@ export interface User {
   permissions: string[]; 
 }
 
+export interface TutorialItem {
+  id: string;
+  title: string;
+  description: string;
+  url: string;
+  category: 'package' | 'addon';
+  iconType: 'essential' | 'standard' | 'premium' | 'mobile' | 'geo' | 'location';
+}
+
 export interface SystemSettings {
   panelName: string;
   logo: string;
   slotCapacity: number;
+  tutorials: TutorialItem[];
+}
+
+/* Added missing interfaces for Client, Trainer, and KAM to resolve type errors in other modules */
+export interface Client {
+  id: string;
+  name: string;
+  company: string;
+  email: string;
+  contact: string;
+  address: string;
+}
+
+export interface Trainer {
+  id: string;
+  name: string;
+  email: string;
+  expertise: string[];
+}
+
+export interface KAM {
+  id: string;
+  name: string;
+  role: string;
+  contact: string;
 }
