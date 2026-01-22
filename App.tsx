@@ -31,7 +31,8 @@ import { supabase } from './lib/supabase';
 
 const STORAGE_KEYS = {
   USER: 'tipsoi_cst_session',
-  TAB: 'tipsoi_cst_active_tab'
+  TAB: 'tipsoi_cst_active_tab',
+  SETTINGS: 'tipsoi_cst_local_settings'
 };
 
 const getLocalDateString = (date = new Date()) => {
@@ -80,11 +81,17 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [kams, setKams] = useState<string[]>([]);
   const [packages, setPackages] = useState<string[]>([]);
-  const [systemSettings, setSystemSettings] = useState<SystemSettings>({ 
-    panelName: 'Tipsoi CST', 
-    logo: '',
-    slotCapacity: 2,
-    tutorials: DEFAULT_TUTORIALS
+  const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
+    const local = localStorage.getItem(STORAGE_KEYS.SETTINGS);
+    if (local) {
+      try { return JSON.parse(local); } catch { }
+    }
+    return { 
+      panelName: 'Tipsoi CST', 
+      logo: '',
+      slotCapacity: 2,
+      tutorials: DEFAULT_TUTORIALS
+    };
   });
 
   const fetchData = useCallback(async () => {
@@ -106,11 +113,13 @@ const App: React.FC = () => {
 
       const { data: stData } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
       if (stData) {
-        setSystemSettings({
+        const settings = {
           ...stData,
           slotCapacity: stData.slotCapacity || 2,
           tutorials: stData.tutorials && stData.tutorials.length > 0 ? stData.tutorials : DEFAULT_TUTORIALS
-        });
+        };
+        setSystemSettings(settings);
+        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
       }
     } catch (err) {
       console.error("Fetch Error:", err);
@@ -124,18 +133,46 @@ const App: React.FC = () => {
 
   const handleUpdateSlots = async (newSlots: TrainingSlot[]) => {
     setSlots(newSlots);
-    await supabase.from('training_slots').delete().neq('id', 'temp');
-    await supabase.from('training_slots').insert(newSlots);
+    try {
+      await supabase.from('training_slots').delete().neq('id', 'temp_placeholder');
+      await supabase.from('training_slots').insert(newSlots.filter(s => !s.isVirtual).map(s => ({
+        id: s.id,
+        time: s.time,
+        isActive: s.isActive,
+        capacity: s.capacity,
+        date: s.date
+      })));
+    } catch (err) {
+      console.error("Failed to update slots:", err);
+    }
   };
 
   const handleUpdateSystemSettings = async (newSettings: SystemSettings) => {
+    // 1. Update UI and Local Storage first for immediate feedback
     setSystemSettings(newSettings);
-    const { error } = await supabase.from('settings').upsert({ id: 1, ...newSettings });
-    if (error) {
-      console.error("Failed to save settings:", error);
-      alert("Error saving data to server. Please check your connection.");
-    } else {
-      await fetchData(); // Force re-sync from server to ensure data is strictly verified
+    localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
+
+    // 2. Prepare precise payload for Supabase to avoid schema mismatch
+    const payload = {
+      id: 1,
+      panelName: newSettings.panelName,
+      slotCapacity: newSettings.slotCapacity,
+      tutorials: newSettings.tutorials,
+      logo: newSettings.logo || ''
+    };
+
+    try {
+      const { error } = await supabase.from('settings').upsert(payload, { onConflict: 'id' });
+      if (error) {
+        console.error("Supabase Save Error Details:", error);
+        alert(`Server Error: ${error.message || 'Check connection'}. Data is saved locally for now.`);
+      } else {
+        // Success - optionally re-fetch to sync
+        await fetchData();
+      }
+    } catch (err) {
+      console.error("Failed to save settings to server:", err);
+      alert("Network Error: Data saved locally. Please check your internet connection.");
     }
   };
 
@@ -154,8 +191,8 @@ const App: React.FC = () => {
           tutorials={systemSettings.tutorials || []} 
           onUpdate={(tuts) => handleUpdateSystemSettings({ ...systemSettings, tutorials: tuts })} 
         />;
-      case 'kam': return <KAMManager kams={kams} onUpdate={async (newKams) => { setKams(newKams); await supabase.from('kams').delete().neq('id', '0'); await supabase.from('kams').insert(newKams.map(n => ({ name: n }))); }} />;
-      case 'packages': return <PackageManager packages={packages} onUpdate={async (newPkgs) => { setPackages(newPkgs); await supabase.from('packages').delete().neq('id', '0'); await supabase.from('packages').insert(newPkgs.map(n => ({ name: n }))); }} />;
+      case 'kam': return <KAMManager kams={kams} onUpdate={async (newKams) => { setKams(newKams); await supabase.from('kams').delete().neq('id', 'temp_placeholder'); await supabase.from('kams').insert(newKams.map(n => ({ name: n }))); fetchData(); }} />;
+      case 'packages': return <PackageManager packages={packages} onUpdate={async (newPkgs) => { setPackages(newPkgs); await supabase.from('packages').delete().neq('id', 'temp_placeholder'); await supabase.from('packages').insert(newPkgs.map(n => ({ name: n }))); fetchData(); }} />;
       case 'slots': return <SlotManager slots={slots} onUpdate={handleUpdateSlots} slotCapacity={systemSettings.slotCapacity} />;
       case 'reports': return <ReportModule bookings={internalBookings} />;
       case 'analytics': return <Analytics bookings={bookings} users={users} />;

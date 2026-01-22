@@ -23,7 +23,7 @@ const KAMManager: React.FC<KAMManagerProps> = ({ kams, onUpdate }) => {
       <div className="flex items-center space-x-4">
         <div className="p-3 bg-emerald-600 text-white rounded-2xl shadow-lg shadow-emerald-200"><UserCheck size={24} /></div>
         <div>
-          <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">KAM Master</h2>
+          <h2 className="text-2xl font-black text-slate-800 tracking-tight uppercase">KAM</h2>
           <p className="text-slate-400 text-[10px] font-black uppercase tracking-widest mt-1">Key Account Management personnel</p>
         </div>
       </div>

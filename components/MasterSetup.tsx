@@ -89,12 +89,12 @@ const MasterSetup: React.FC = () => {
           </div>
         </div>
 
-        {/* KAM Master */}
+        {/* KAM */}
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden xl:col-span-2">
           <div className="p-6 border-b border-slate-100 flex items-center justify-between">
             <div className="flex items-center space-x-3">
               <div className="p-2 bg-green-50 text-green-600 rounded-lg"><BookOpen size={20} /></div>
-              <h3 className="font-bold text-slate-800">KAM Master</h3>
+              <h3 className="font-bold text-slate-800">KAM</h3>
             </div>
             <button onClick={() => handleAction('KAM')} className="px-3 py-1 bg-green-600 text-white text-xs font-bold rounded-lg hover:bg-green-700 transition-all">Assign New KAM</button>
           </div>
