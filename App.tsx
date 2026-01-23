@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useCallback } from 'react';
 import { 
   Menu,
@@ -47,7 +46,7 @@ const DEFAULT_TUTORIALS: TutorialItem[] = [
   { id: 't-2', category: 'package', title: 'Standard', iconType: 'standard', description: 'Advanced leave management and shift scheduling.', url: '' },
   { id: 't-3', category: 'package', title: 'Premium', iconType: 'premium', description: 'The complete suite including payroll and performance tracking.', url: '' },
   { id: 't-4', category: 'addon', title: 'Mobile Punch', iconType: 'mobile', description: 'Employee attendance via mobile application.', url: '' },
-  { id: 't-5', category: 'addon', title: 'Geo Fencing', iconType: 'geo', description: 'Restricting attendance within specific geographic boundaries.', url: '' },
+  { id: 't-5', category: 'addon', title: 'Geo Fencing', iconType: 'mobile', description: 'Restricting attendance within specific geographic boundaries.', url: '' },
   { id: 't-6', category: 'addon', title: 'Location Tracking', iconType: 'location', description: 'Real-time tracking of field employees.', url: '' },
 ];
 
@@ -98,7 +97,8 @@ const App: React.FC = () => {
   const fetchData = useCallback(async () => {
     setIsDataRefreshing(true);
     try {
-      const { data: bData } = await supabase.from('bookings').select('*').order('date', { ascending: false });
+      const { data: bData, error: bError } = await supabase.from('bookings').select('*').order('date', { ascending: false });
+      if (bError) console.error("Bookings Fetch Error:", bError);
       if (bData) setBookings(bData);
 
       const { data: uData } = await supabase.from('users').select('*');
@@ -116,29 +116,22 @@ const App: React.FC = () => {
       const { data: stData } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
       if (stData) {
         setSystemSettings(prevSettings => {
-            let dbTutorials = stData.tutorials;
-            if (typeof dbTutorials === 'string' && dbTutorials.startsWith('[')) {
-                try {
-                    dbTutorials = JSON.parse(dbTutorials);
-                } catch (e) {
-                    console.error("Failed to parse tutorials string from DB", e);
-                    dbTutorials = prevSettings.tutorials; // fallback to previous state on parse error
-                }
-            }
-    
-            const newSettings = {
-              ...prevSettings,
-              ...stData,
-              slotCapacity: stData.slotCapacity || prevSettings.slotCapacity || 2,
-              // Use DB tutorials if it's an array (even empty), otherwise keep previous state tutorials
-              tutorials: Array.isArray(dbTutorials) ? dbTutorials : prevSettings.tutorials
-            };
-            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
-            return newSettings;
+          let dbTutorials = stData.tutorials;
+          if (typeof dbTutorials === 'string' && dbTutorials.startsWith('[')) {
+            try { dbTutorials = JSON.parse(dbTutorials); } catch { dbTutorials = prevSettings.tutorials; }
+          }
+          const newSettings = {
+            ...prevSettings,
+            ...stData,
+            slotCapacity: stData.slotCapacity || prevSettings.slotCapacity || 2,
+            tutorials: Array.isArray(dbTutorials) ? dbTutorials : prevSettings.tutorials
+          };
+          localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
+          return newSettings;
         });
       }
     } catch (err) {
-      console.error("Fetch Error:", err);
+      console.error("Fetch Data Error:", err);
     } finally {
       setIsLoading(false);
       setIsDataRefreshing(false);
@@ -146,7 +139,6 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => { 
-    // Initial fetch
     fetchData(); 
   }, [fetchData]);
 
@@ -169,10 +161,8 @@ const App: React.FC = () => {
   };
 
   const handleUpdateSystemSettings = async (newSettings: SystemSettings) => {
-    // 1. Update UI and Local Storage IMMEDIATELY for responsiveness
     setSystemSettings(newSettings);
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
-
     const fullPayload = {
       id: 1,
       panelName: newSettings.panelName,
@@ -180,49 +170,17 @@ const App: React.FC = () => {
       tutorials: newSettings.tutorials,
       logo: newSettings.logo || ''
     };
-
-    // Attempt 1: Assume `tutorials` column is JSONB
     const { error: jsonError } = await supabase.from('settings').upsert(fullPayload, { onConflict: 'id' });
-
-    if (!jsonError) {
-      console.log("Successfully saved settings (tutorials as JSON).");
-      return; // Success!
-    }
-
-    console.warn("Saving with tutorials as JSON object failed, retrying as string:", jsonError.message);
-
-    // Attempt 2: Assume `tutorials` column is TEXT
-    const payloadWithStringifiedTutorials = {
-      ...fullPayload,
-      tutorials: JSON.stringify(newSettings.tutorials),
-    };
-    // @ts-ignore
+    if (!jsonError) return;
+    const payloadWithStringifiedTutorials = { ...fullPayload, tutorials: JSON.stringify(newSettings.tutorials) };
     const { error: textError } = await supabase.from('settings').upsert(payloadWithStringifiedTutorials, { onConflict: 'id' });
-
-    if (!textError) {
-      console.log("Successfully saved settings (tutorials as TEXT).");
-      return; // Success!
-    }
-
-    console.warn("Saving with tutorials as string also failed:", textError.message);
-
-    // Attempt 3: Save settings without tutorials to see if other parts work
+    if (!textError) return;
     const { tutorials, ...basePayload } = fullPayload;
-    const { error: baseError } = await supabase.from('settings').upsert(basePayload, { onConflict: 'id' });
-    
-    if (!baseError) {
-      console.log("Successfully saved base settings, but tutorials could not be synced.");
-      alert("Settings for panel name saved, but tutorial links could not sync with the database server. Please check your Supabase 'settings' table for a 'tutorials' column (type jsonb or text).");
-      return;
-    }
-    
-    console.error("All attempts to save settings failed. Base settings error:", baseError.message);
-    alert("Could not save any settings to the database. Please check your Supabase table schema and connection.");
+    await supabase.from('settings').upsert(basePayload, { onConflict: 'id' });
   };
 
   const renderContent = () => {
     const internalBookings = bookings.filter(b => b.category !== 'Public Request');
-
     switch (activeTab) {
       case 'dashboard': return <Dashboard bookings={internalBookings} users={users} />;
       case 'mdb': return <MDBMasterHub />;
@@ -231,58 +189,19 @@ const App: React.FC = () => {
       case 'slot-report': 
         return <SlotReport bookings={bookings} onEdit={(b) => { setSelectedBookingForEdit(b); setIsSlotEditModalOpen(true); }} onDelete={async (id) => { await supabase.from('bookings').delete().eq('id', id); fetchData(); }} onRefresh={fetchData} isRefreshing={isDataRefreshing} />;
       case 'tutorials': 
-        return <TutorialManager 
-          tutorials={systemSettings.tutorials || []} 
-          onUpdate={(tuts) => handleUpdateSystemSettings({ ...systemSettings, tutorials: tuts })} 
-        />;
+        return <TutorialManager tutorials={systemSettings.tutorials || []} onUpdate={(tuts) => handleUpdateSystemSettings({ ...systemSettings, tutorials: tuts })} />;
       case 'kam': 
-        return <KAMManager 
-          kams={kams} 
-          onUpdate={async (newKams) => {
-            const { error: deleteError } = await supabase.from('kams').delete().neq('name', 'this-is-a-placeholder-that-should-not-exist');
-            if (deleteError) {
-              console.error("Supabase KAM delete error:", deleteError);
-              alert(`Failed to update KAM list (Error code: K-DEL). The new data will not be saved. Please check the 'kams' table permissions in your Supabase project.`);
-              fetchData();
-              return;
-            }
-        
-            if (newKams.length > 0) {
-              const { error: insertError } = await supabase.from('kams').insert(newKams.map(n => ({ name: n })));
-              if (insertError) {
-                console.error("Supabase KAM insert error:", insertError);
-                alert(`Failed to update KAM list (Error code: K-INS). The new data will not be saved. Please check the 'kams' table permissions and ensure the 'name' column is unique.`);
-                fetchData();
-                return;
-              }
-            }
+        return <KAMManager kams={kams} onUpdate={async (newKams) => {
+            await supabase.from('kams').delete().neq('name', 'placeholder');
+            if (newKams.length > 0) await supabase.from('kams').insert(newKams.map(n => ({ name: n })));
             fetchData();
-          }} 
-        />;
+          }} />;
       case 'packages': 
-        return <PackageManager 
-          packages={packages} 
-          onUpdate={async (newPkgs) => {
-            const { error: deleteError } = await supabase.from('packages').delete().neq('name', 'this-is-a-placeholder-that-should-not-exist');
-            if (deleteError) {
-              console.error("Supabase Package delete error:", deleteError);
-              alert(`Failed to update Package list (Error code: P-DEL). The new data will not be saved. Please check the 'packages' table permissions in your Supabase project.`);
-              fetchData();
-              return;
-            }
-
-            if (newPkgs.length > 0) {
-              const { error: insertError } = await supabase.from('packages').insert(newPkgs.map(n => ({ name: n })));
-              if (insertError) {
-                console.error("Supabase Package insert error:", insertError);
-                alert(`Failed to update Package list (Error code: P-INS). The new data will not be saved. Please check the 'packages' table permissions and ensure the 'name' column is unique.`);
-                fetchData();
-                return;
-              }
-            }
+        return <PackageManager packages={packages} onUpdate={async (newPkgs) => {
+            await supabase.from('packages').delete().neq('name', 'placeholder');
+            if (newPkgs.length > 0) await supabase.from('packages').insert(newPkgs.map(n => ({ name: n })));
             fetchData();
-          }} 
-        />;
+          }} />;
       case 'slots': return <SlotManager slots={slots} onUpdate={handleUpdateSlots} slotCapacity={systemSettings.slotCapacity} />;
       case 'reports': return <ReportModule bookings={internalBookings} />;
       case 'analytics': return <Analytics bookings={bookings} users={users} />;
@@ -294,35 +213,52 @@ const App: React.FC = () => {
 
   if (!isLoggedIn || !currentUser) {
     if (authView === 'landing') return <PublicBookingPage slots={slots} bookings={bookings} onSubmit={async (d) => { 
-      const newBooking: Partial<TrainingBooking> = {
-        id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
+      const timestamp = Date.now().toString().slice(-8);
+      const notesWithPhone = `Customer requested via public portal. Phone: ${d.phoneNumber}`;
+      
+      const newBooking: any = {
+        id: `REQ-${timestamp}-${Math.floor(Math.random() * 1000)}`,
         clientName: d.companyName,
-        phoneNumber: d.phoneNumber,
+        phoneNumber: d.phoneNumber, // Try including it first
         assignedPerson: 'TBD',
         kamName: 'TBD',
-        title: 'Training Request',
+        title: 'Online Training Session',
         category: 'Public Request',
         type: TrainingType.ONLINE,
-        package: 'Basic',
+        package: 'Basic Training',
         manpowerSubmissionDate: getLocalDateString(),
         date: d.date,
         startTime: d.slotTime,
         duration: 1,
         location: 'Remote',
-        notes: `Phone: ${d.phoneNumber}. Requested via public portal.`,
+        notes: notesWithPhone,
         status: BookingStatus.PENDING,
         createdAt: new Date().toISOString(),
         history: [{ timestamp: new Date().toISOString(), user: 'Public Portal', action: 'Requested' }]
       };
-      const { data: inserted, error } = await supabase.from('bookings').insert([newBooking]).select();
-      if (error) throw error;
-      fetchData();
-      return inserted ? inserted[0].id : newBooking.id;
+      
+      // Step 1: Attempt standard insert
+      let result = await supabase.from('bookings').insert([newBooking]).select();
+      
+      // Step 2: Handle missing column schema error (PostgREST 42703 error code or column message)
+      if (result.error && (result.error.message.includes('phoneNumber') || result.error.code === '42703')) {
+        console.warn("Schema mismatch detected: 'phoneNumber' column missing. Retrying with phone in 'notes'...");
+        const { phoneNumber, ...fallbackBooking } = newBooking;
+        const retry = await supabase.from('bookings').insert([fallbackBooking]).select();
+        if (retry.error) throw retry.error;
+        result = retry;
+      } else if (result.error) {
+        throw result.error;
+      }
+      
+      await fetchData();
+      return result.data ? result.data[0].id : newBooking.id;
     }} onAdminClick={() => setAuthView('login')} systemSettings={systemSettings} />;
+    
     return <Login onLogin={(u) => { setCurrentUser({ ...u, permissions: u.permissions || [] }); setIsLoggedIn(true); localStorage.setItem(STORAGE_KEYS.USER, JSON.stringify(u)); }} users={users} onBack={() => setAuthView('landing')} />;
   }
 
-  if (isLoading) return <div className="min-h-screen bg-slate-900 flex items-center justify-center"><Loader2 size={40} className="text-blue-500 animate-spin" /></div>;
+  if (isLoading) return <div className="min-h-screen bg-slate-50 flex items-center justify-center"><Loader2 size={40} className="text-blue-500 animate-spin" /></div>;
 
   return (
     <div className="min-h-screen bg-slate-50 flex overflow-x-hidden">
@@ -334,47 +270,39 @@ const App: React.FC = () => {
         </header>
         <div className="p-4 md:p-8 max-w-7xl mx-auto w-full flex-1 custom-scrollbar overflow-y-auto">{renderContent()}</div>
       </main>
-
-      <BookingModal 
-        isOpen={isBookingModalOpen} 
-        onClose={() => setIsBookingModalOpen(false)} 
-        onSubmit={async (b) => { 
+      <BookingModal isOpen={isBookingModalOpen} onClose={() => setIsBookingModalOpen(false)} onSubmit={async (b) => { 
           if (selectedBookingForEdit) await supabase.from('bookings').update(b).eq('id', b.id);
           else await supabase.from('bookings').insert([b]); 
           fetchData(); 
-        }} 
-        bookingToEdit={selectedBookingForEdit} 
-        users={users} kams={kams} packages={packages} 
-      />
-
+        }} bookingToEdit={selectedBookingForEdit} users={users} kams={kams} packages={packages} />
+      
       {isSlotEditModalOpen && selectedBookingForEdit && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
           <div className="bg-white rounded-[2rem] shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="px-8 py-6 border-b border-slate-100 flex items-center justify-between">
-              <h3 className="text-lg font-bold text-slate-900">Edit Slot Details</h3>
-              <button onClick={() => setIsSlotEditModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400 transition-colors"><X size={20}/></button>
+              <h3 className="text-lg font-bold text-slate-900">Modify Slot Record</h3>
+              <button onClick={() => setIsSlotEditModalOpen(false)} className="p-2 hover:bg-slate-100 rounded-full text-slate-400"><X size={20}/></button>
             </div>
             <form className="p-8 space-y-6" onSubmit={async (e) => {
               e.preventDefault();
-              const updated = { ...selectedBookingForEdit };
-              await supabase.from('bookings').update(updated).eq('id', updated.id);
+              await supabase.from('bookings').update(selectedBookingForEdit).eq('id', selectedBookingForEdit.id);
               fetchData();
               setIsSlotEditModalOpen(false);
             }}>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center"><Briefcase size={12} className="mr-2" /> Company Name</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Company Name</label>
                 <input required className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm font-bold bg-slate-50 focus:bg-white focus:border-blue-600 outline-none transition-all" value={selectedBookingForEdit.clientName} onChange={e => setSelectedBookingForEdit({...selectedBookingForEdit, clientName: e.target.value})} />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center"><CalendarIcon size={12} className="mr-2" /> Training Date</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Preferred Date</label>
                 <input required type="date" className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm font-bold bg-slate-50 focus:bg-white focus:border-blue-600 outline-none transition-all" value={selectedBookingForEdit.date} onChange={e => setSelectedBookingForEdit({...selectedBookingForEdit, date: e.target.value})} />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center"><Clock size={12} className="mr-2" /> Start Time</label>
-                <input required type="time" className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm font-bold bg-slate-50 focus:bg-white focus:border-blue-600 outline-none transition-all" value={selectedBookingForEdit.startTime} onChange={e => setSelectedBookingForEdit({...selectedBookingForEdit, startTime: e.target.value})} />
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Session Time</label>
+                <input required className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm font-bold bg-slate-50 focus:bg-white focus:border-blue-600 outline-none transition-all" value={selectedBookingForEdit.startTime} onChange={e => setSelectedBookingForEdit({...selectedBookingForEdit, startTime: e.target.value})} />
               </div>
               <div className="space-y-1">
-                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1 flex items-center"><CheckCircle2 size={12} className="mr-2" /> Status</label>
+                <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest ml-1">Status</label>
                 <select className="w-full px-4 py-3 border border-slate-200 rounded-xl text-sm font-bold bg-slate-50 focus:bg-white focus:border-blue-600 outline-none transition-all" value={selectedBookingForEdit.status} onChange={e => setSelectedBookingForEdit({...selectedBookingForEdit, status: e.target.value as BookingStatus})}>
                    <option value={BookingStatus.PENDING}>Pending</option>
                    <option value={BookingStatus.APPROVED}>Approved</option>
@@ -382,7 +310,7 @@ const App: React.FC = () => {
                    <option value={BookingStatus.CANCELLED}>Cancelled</option>
                 </select>
               </div>
-              <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95">Save Update</button>
+              <button type="submit" className="w-full py-4 bg-slate-900 text-white rounded-2xl font-bold text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl active:scale-95">Save Update</button>
             </form>
           </div>
         </div>

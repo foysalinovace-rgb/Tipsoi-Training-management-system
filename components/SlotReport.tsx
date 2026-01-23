@@ -8,10 +8,7 @@ import {
   Clock, 
   Building2, 
   Phone, 
-  CheckCircle2, 
-  XCircle, 
   AlertTriangle,
-  FileText,
   Filter,
   RotateCcw,
   RefreshCw,
@@ -30,7 +27,6 @@ interface SlotReportProps {
 const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete, onRefresh, isRefreshing }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  
   const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [statusFilter, setStatusFilter] = useState<BookingStatus | 'All'>('All');
   const [startDate, setStartDate] = useState('');
@@ -58,15 +54,11 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete, onR
 
   const filtered = bookings.filter(b => {
     if (b.category !== 'Public Request') return false;
-
     if (statusFilter !== 'All' && b.status !== statusFilter) return false;
-    
     if (startDate && endDate && (b.date < startDate || b.date > endDate)) return false;
-
     const search = searchTerm.toLowerCase();
     return (
       b.clientName.toLowerCase().includes(search) ||
-      (b.companyName && b.companyName.toLowerCase().includes(search)) ||
       (b.phoneNumber && b.phoneNumber.includes(search)) ||
       b.id.toLowerCase().includes(search)
     );
@@ -106,34 +98,18 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete, onR
         <div className="p-4 border-b border-slate-100 bg-slate-50/30 flex items-center gap-2">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
-            <input 
-              type="text" 
-              placeholder="Search by client, company or ID..." 
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 outline-none text-[11px] font-bold bg-white focus:ring-4 focus:ring-blue-500/5 transition-all"
-            />
+            <input type="text" placeholder="Search by company or phone..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full pl-10 pr-4 py-2.5 rounded-xl border border-slate-200 outline-none text-[11px] font-bold bg-white focus:ring-4 focus:ring-blue-500/5 transition-all" />
           </div>
-          <button 
-            onClick={onRefresh}
-            disabled={isRefreshing}
-            className="inline-flex items-center px-4 py-2.5 rounded-xl border font-bold text-xs transition-all shadow-sm bg-white text-slate-500 border-slate-200 hover:bg-slate-50 disabled:opacity-60"
-          >
+          <button onClick={onRefresh} disabled={isRefreshing} className="inline-flex items-center px-4 py-2.5 rounded-xl border font-bold text-xs bg-white text-slate-500 border-slate-200 hover:bg-slate-50 disabled:opacity-60">
             {isRefreshing ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
           </button>
           <div className="relative" ref={filterRef}>
-            <button 
-              onClick={() => setIsFilterOpen(!isFilterOpen)}
-              className={`inline-flex items-center px-4 py-2.5 rounded-xl border font-bold text-xs transition-all shadow-sm ${areFiltersActive ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}
-            >
-              <Filter size={14} className="mr-2" />
-              Filter
+            <button onClick={() => setIsFilterOpen(!isFilterOpen)} className={`inline-flex items-center px-4 py-2.5 rounded-xl border font-bold text-xs transition-all shadow-sm ${areFiltersActive ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-500 border-slate-200 hover:bg-slate-50'}`}>
+              <Filter size={14} className="mr-2" /> Filter
             </button>
             {isFilterOpen && (
               <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="p-4 border-b border-slate-100">
-                  <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Filter Options</h4>
-                </div>
+                <div className="p-4 border-b border-slate-100"><h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Filter Options</h4></div>
                 <div className="p-4 space-y-4">
                   <div className="grid grid-cols-2 gap-2">
                     <div className="space-y-1">
@@ -165,7 +141,6 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete, onR
             )}
           </div>
         </div>
-
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left">
             <thead>
@@ -182,9 +157,7 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete, onR
               {filtered.map((booking) => (
                 <tr key={booking.id} className="hover:bg-slate-50/50 transition-colors group">
                   <td className="px-6 py-4">
-                    <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200">
-                      {booking.id}
-                    </span>
+                    <span className="text-[10px] font-mono font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200">{booking.id}</span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
@@ -200,18 +173,12 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete, onR
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex flex-col space-y-0.5">
-                      <div className="flex items-center text-[10px] font-bold text-blue-600 uppercase">
-                        <Calendar size={12} className="mr-1.5" /> {booking.date}
-                      </div>
-                      <div className="flex items-center text-[10px] font-bold text-slate-400">
-                        <Clock size={12} className="mr-1.5" /> {booking.startTime}
-                      </div>
+                      <div className="flex items-center text-[10px] font-bold text-blue-600 uppercase"><Calendar size={12} className="mr-1.5" /> {booking.date}</div>
+                      <div className="flex items-center text-[10px] font-bold text-slate-400"><Clock size={12} className="mr-1.5" /> {booking.startTime}</div>
                     </div>
                   </td>
                   <td className="px-6 py-4">
-                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase border tracking-tight ${getStatusStyle(booking.status)}`}>
-                      {booking.status}
-                    </span>
+                    <span className={`px-2 py-0.5 rounded-lg text-[9px] font-black uppercase border tracking-tight ${getStatusStyle(booking.status)}`}>{booking.status}</span>
                   </td>
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-1">
@@ -227,7 +194,6 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete, onR
                     <div className="flex flex-col items-center">
                       <ClipboardList size={40} className="mb-2 opacity-20" />
                       <p className="text-sm font-bold uppercase tracking-widest">No slot bookings found</p>
-                      <p className="text-xs mt-1">Try adjusting your search or filter criteria.</p>
                     </div>
                   </td>
                 </tr>
@@ -236,16 +202,13 @@ const SlotReport: React.FC<SlotReportProps> = ({ bookings, onEdit, onDelete, onR
           </table>
         </div>
       </div>
-
       {deleteConfirmId && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-8 text-center">
-              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-red-100">
-                <AlertTriangle size={32} />
-              </div>
+              <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-red-100"><AlertTriangle size={32} /></div>
               <h3 className="text-xl font-bold text-slate-800 uppercase tracking-tight">Confirm Deletion</h3>
-              <p className="text-slate-500 text-xs mt-2 leading-relaxed">Remove booking <span className="text-slate-900 font-bold">{deleteConfirmId}</span>? This data will be removed from all reports.</p>
+              <p className="text-slate-500 text-xs mt-2 leading-relaxed">Remove booking <span className="text-slate-900 font-bold">{deleteConfirmId}</span>? This cannot be undone.</p>
             </div>
             <div className="p-4 bg-slate-50 grid grid-cols-2 gap-2">
               <button onClick={() => setDeleteConfirmId(null)} className="py-2.5 bg-white border border-slate-200 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-xl">Cancel</button>
