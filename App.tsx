@@ -113,13 +113,22 @@ const App: React.FC = () => {
 
       const { data: stData } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
       if (stData) {
-        // Only override if the data exists in DB, otherwise keep local/default
+        let dbTutorials = stData.tutorials;
+        // Handle both JSON and stringified JSON from DB
+        if (typeof dbTutorials === 'string' && dbTutorials.startsWith('[')) {
+          try {
+            dbTutorials = JSON.parse(dbTutorials);
+          } catch (e) {
+            console.error("Failed to parse tutorials string from DB", e);
+            dbTutorials = []; // Default to empty if parsing fails
+          }
+        }
+  
         const settings = {
           ...systemSettings, // start with current state
           ...stData,
           slotCapacity: stData.slotCapacity || systemSettings.slotCapacity || 2,
-          // Merge tutorials carefully: if DB has tutorials, use them, otherwise keep current
-          tutorials: stData.tutorials && stData.tutorials.length > 0 ? stData.tutorials : systemSettings.tutorials
+          tutorials: Array.isArray(dbTutorials) && dbTutorials.length > 0 ? dbTutorials : systemSettings.tutorials
         };
         setSystemSettings(settings);
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
@@ -159,54 +168,51 @@ const App: React.FC = () => {
     setSystemSettings(newSettings);
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
 
-    // 2. Prepare multiple fallback strategies for database sync
-    const strategies = [
-      // Strategy 1: Full payload
-      {
-        id: 1,
-        panelName: newSettings.panelName,
-        slotCapacity: newSettings.slotCapacity,
-        tutorials: newSettings.tutorials,
-        logo: newSettings.logo || ''
-      },
-      // Strategy 2: Remove slotCapacity (common missing column)
-      {
-        id: 1,
-        panelName: newSettings.panelName,
-        tutorials: newSettings.tutorials,
-        logo: newSettings.logo || ''
-      },
-      // Strategy 3: Tutorials only (Emergency fallback)
-      {
-        id: 1,
-        tutorials: newSettings.tutorials
-      }
-    ];
+    const fullPayload = {
+      id: 1,
+      panelName: newSettings.panelName,
+      slotCapacity: newSettings.slotCapacity,
+      tutorials: newSettings.tutorials,
+      logo: newSettings.logo || ''
+    };
 
-    let savedSuccessfully = false;
+    // Attempt 1: Assume `tutorials` column is JSONB
+    const { error: jsonError } = await supabase.from('settings').upsert(fullPayload, { onConflict: 'id' });
 
-    for (const [index, payload] of strategies.entries()) {
-      try {
-        const { error } = await supabase.from('settings').upsert(payload, { onConflict: 'id' });
-        
-        if (!error) {
-          console.log(`Successfully saved using Strategy ${index + 1}`);
-          savedSuccessfully = true;
-          break; // Exit loop on success
-        } else {
-          console.warn(`Strategy ${index + 1} failed:`, error.message);
-          // If it's not a column error, maybe we shouldn't continue? 
-          // But usually column missing is why it fails.
-        }
-      } catch (err) {
-        console.error(`Strategy ${index + 1} exception:`, err);
-      }
+    if (!jsonError) {
+      console.log("Successfully saved settings (tutorials as JSON).");
+      return; // Success!
     }
 
-    if (!savedSuccessfully) {
-      console.error("All sync strategies failed.");
-      alert("Tutorial links saved to your browser, but could not sync with the database server. Please check your Supabase table schema.");
+    console.warn("Saving with tutorials as JSON object failed, retrying as string:", jsonError.message);
+
+    // Attempt 2: Assume `tutorials` column is TEXT
+    const payloadWithStringifiedTutorials = {
+      ...fullPayload,
+      tutorials: JSON.stringify(newSettings.tutorials),
+    };
+    // @ts-ignore
+    const { error: textError } = await supabase.from('settings').upsert(payloadWithStringifiedTutorials, { onConflict: 'id' });
+
+    if (!textError) {
+      console.log("Successfully saved settings (tutorials as TEXT).");
+      return; // Success!
     }
+
+    console.warn("Saving with tutorials as string also failed:", textError.message);
+
+    // Attempt 3: Save settings without tutorials to see if other parts work
+    const { tutorials, ...basePayload } = fullPayload;
+    const { error: baseError } = await supabase.from('settings').upsert(basePayload, { onConflict: 'id' });
+    
+    if (!baseError) {
+      console.log("Successfully saved base settings, but tutorials could not be synced.");
+      alert("Settings for panel name saved, but tutorial links could not sync with the database server. Please check your Supabase 'settings' table for a 'tutorials' column (type jsonb or text).");
+      return;
+    }
+    
+    console.error("All attempts to save settings failed. Base settings error:", baseError.message);
+    alert("Could not save any settings to the database. Please check your Supabase table schema and connection.");
   };
 
   const renderContent = () => {
