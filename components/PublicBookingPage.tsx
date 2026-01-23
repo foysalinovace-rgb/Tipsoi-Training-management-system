@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   Calendar as CalendarIcon, 
@@ -68,11 +69,42 @@ const normalizeTime = (timeStr: string): string => {
   return cleaned;
 };
 
+const getEmbedUrl = (url: string): string | null => {
+  if (!url || typeof url !== 'string') return null;
+
+  try {
+    let videoId: string | null = null;
+    
+    if (url.includes('youtube.com/watch')) {
+      const urlObj = new URL(url);
+      videoId = urlObj.searchParams.get('v');
+    }
+    else if (url.includes('youtu.be/')) {
+      const urlObj = new URL(url);
+      videoId = urlObj.pathname.substring(1);
+    }
+    else if (url.includes('youtube.com/embed/')) {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/');
+      videoId = pathParts[pathParts.length - 1];
+    }
+    
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId.split('?')[0]}?autoplay=1`;
+    }
+  } catch (error) {
+    console.warn("Invalid URL for embedding:", url, error);
+    return null;
+  }
+  
+  return null;
+};
+
 const DEFAULT_TIMES = ['10:00 AM', '12:00 PM', '03:00 PM', '05:00 PM'];
 
 const PublicBookingPage: React.FC<PublicBookingPageProps> = ({ slots, bookings, onSubmit, onAdminClick, systemSettings }) => {
-  const [view, setView] = useState<'landing' | 'booking' | 'tutorials' | 'video-player' | 'success'>('landing');
-  const [activeVideoUrl, setActiveVideoUrl] = useState<string | null>(null);
+  const [view, setView] = useState<'landing' | 'booking' | 'tutorials' | 'success' | 'videoPlayer'>('landing');
+  const [selectedTutorialForPlayer, setSelectedTutorialForPlayer] = useState<TutorialItem | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   
@@ -188,13 +220,13 @@ const PublicBookingPage: React.FC<PublicBookingPageProps> = ({ slots, bookings, 
     };
   }, [systemSettings.tutorials]);
 
-  const handlePlayVideo = (url: string) => {
-    if (!url) {
-      alert("Tutorial video URL not configured for this module.");
+  const handleTutorialClick = (tutorial: TutorialItem) => {
+    if (!tutorial.url || !getEmbedUrl(tutorial.url)) {
+      alert("A valid YouTube video URL has not been configured for this module.");
       return;
     }
-    setActiveVideoUrl(url);
-    setView('video-player');
+    setSelectedTutorialForPlayer(tutorial);
+    setView('videoPlayer');
   };
 
   const calendarDays = useMemo(() => {
@@ -273,94 +305,85 @@ const PublicBookingPage: React.FC<PublicBookingPageProps> = ({ slots, bookings, 
           </button>
 
           <div className="space-y-24">
-            {/* Software Packages Section */}
             <div className="space-y-12">
               <div className="flex items-center space-x-5">
                 <div className="w-1.5 h-10 bg-indigo-600 rounded-full"></div>
                 <h2 className="text-4xl font-black text-[#1E293B] tracking-tight">Software Packages</h2>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
                 {tutorialsByType.packages.map((tut, idx) => (
-                  <div 
-                    key={tut.id} 
-                    style={{ animationDelay: `${idx * 100}ms` }}
-                    className="bg-white p-12 rounded-[2.5rem] border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)] hover:shadow-[0_40px_80px_rgba(0,0,0,0.06)] transition-all group flex flex-col items-start h-full animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both cursor-pointer"
-                    onClick={() => handlePlayVideo(tut.url)}
-                  >
-                    <div className="w-20 h-20 bg-[#F1F5F9] rounded-[1.5rem] flex items-center justify-center mb-10 group-hover:scale-105 transition-transform duration-500">
-                      {getIconForType(tut.iconType)}
-                    </div>
-                    <h3 className="text-2xl font-black mb-4 text-[#1E293B]">{tut.title}</h3>
-                    <p className="text-slate-500 font-medium leading-relaxed mb-12 flex-grow text-sm">{tut.description}</p>
-                    <button 
-                      className="inline-flex items-center text-xs font-black uppercase tracking-widest text-indigo-600 hover:text-indigo-800 transition-colors group/btn"
+                  <div key={tut.id} style={{ animationDelay: `${idx * 100}ms` }} className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both">
+                    <div 
+                      className="bg-white p-12 rounded-[2.5rem] border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)] hover:shadow-[0_40px_80px_rgba(0,0,0,0.06)] transition-all group flex flex-col items-start h-full cursor-pointer"
+                      onClick={() => handleTutorialClick(tut)}
                     >
-                      Watch Tutorial <ArrowRightIcon size={16} className="ml-2 group-hover/btn:translate-x-1 transition-transform" />
-                    </button>
+                      <div className="w-20 h-20 bg-[#F1F5F9] rounded-[1.5rem] flex items-center justify-center mb-10 group-hover:scale-105 transition-transform duration-500">
+                        {getIconForType(tut.iconType)}
+                      </div>
+                      <h3 className="text-2xl font-black mb-4 text-[#1E293B]">{tut.title}</h3>
+                      <p className="text-slate-500 font-medium leading-relaxed mb-12 flex-grow text-sm">{tut.description}</p>
+                      <div className="inline-flex items-center text-xs font-black uppercase tracking-widest text-indigo-600 group-hover:text-indigo-800 transition-colors group/btn">
+                        Watch Tutorial <ArrowRightIcon size={16} className="ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
                   </div>
                 ))}
               </div>
             </div>
-
-            {/* Add-on Modules Section */}
             <div className="space-y-12">
               <div className="flex items-center space-x-5">
                 <div className="w-1.5 h-10 bg-[#10B981] rounded-full"></div>
                 <h2 className="text-4xl font-black text-[#1E293B] tracking-tight">Add-on Modules</h2>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-start">
                 {tutorialsByType.addons.map((tut, idx) => (
-                  <button 
-                    key={tut.id}
-                    onClick={() => handlePlayVideo(tut.url)}
-                    style={{ animationDelay: `${(idx + 3) * 100}ms` }}
-                    className="bg-white p-7 rounded-[2.25rem] border border-slate-50 shadow-[0_10px_40px_rgba(0,0,0,0.03)] hover:shadow-[0_25px_50px_rgba(0,0,0,0.07)] hover:-translate-y-1 transition-all flex items-center justify-between group animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both"
-                  >
-                    <div className="flex items-center space-x-6">
-                      <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center transition-all duration-500 group-hover:scale-105 ${tut.iconType === 'location' ? 'bg-rose-50' : 'bg-[#ECFDF5]'}`}>
-                        {getIconForType(tut.iconType)}
+                  <div key={tut.id} style={{ animationDelay: `${(idx + 3) * 100}ms` }} className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both">
+                    <button onClick={() => handleTutorialClick(tut)} className="w-full bg-white p-7 rounded-[2.25rem] border border-slate-50 shadow-[0_10px_40px_rgba(0,0,0,0.03)] hover:shadow-[0_25px_50px_rgba(0,0,0,0.07)] hover:-translate-y-1 transition-all flex items-center justify-between group">
+                      <div className="flex items-center space-x-6">
+                        <div className={`w-16 h-16 rounded-[1.25rem] flex items-center justify-center transition-all duration-500 group-hover:scale-105 ${tut.iconType === 'location' ? 'bg-rose-50' : 'bg-[#ECFDF5]'}`}>
+                          {getIconForType(tut.iconType)}
+                        </div>
+                        <div className="text-left">
+                          <h4 className="text-lg font-black text-[#1E293B] leading-tight mb-1">{tut.title}</h4>
+                          <span className="text-[10px] font-black uppercase text-slate-300 tracking-[0.15em]">MODULE TUTORIAL</span>
+                        </div>
                       </div>
-                      <div className="text-left">
-                        <h4 className="text-lg font-black text-[#1E293B] leading-tight mb-1">{tut.title}</h4>
-                        <span className="text-[10px] font-black uppercase text-slate-300 tracking-[0.15em]">MODULE TUTORIAL</span>
-                      </div>
-                    </div>
-                    <ChevronRightIcon size={22} className="text-slate-200 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
-                  </button>
+                      <ChevronRightIcon size={22} className="text-slate-200 group-hover:text-indigo-500 group-hover:translate-x-1 transition-all" />
+                    </button>
+                  </div>
                 ))}
               </div>
             </div>
           </div>
         </main>
       )}
+      
+      {view === 'videoPlayer' && selectedTutorialForPlayer && (
+        <main className="pt-32 pb-24 px-6 max-w-5xl mx-auto w-full animate-in fade-in duration-500">
+          <button
+            onClick={() => {
+              setView('tutorials');
+              setSelectedTutorialForPlayer(null);
+            }}
+            className="flex items-center text-[10px] font-black text-slate-400 uppercase tracking-widest hover:text-indigo-600 transition-colors mb-8"
+          >
+            <ChevronLeft size={16} className="mr-1" /> BACK TO ALL TUTORIALS
+          </button>
 
-      {view === 'video-player' && (
-        <main className="fixed inset-0 z-[200] bg-slate-900/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in duration-300">
-          <div className="w-full max-w-5xl aspect-video bg-black rounded-[2.5rem] overflow-hidden shadow-2xl relative">
-            <button 
-              onClick={() => setView('tutorials')}
-              className="absolute top-6 right-6 z-[210] p-3 bg-white/10 hover:bg-white/20 text-white rounded-full transition-all backdrop-blur-md"
-            >
-              <XCircle size={24} />
-            </button>
-            {activeVideoUrl ? (
-               <iframe 
-                src={activeVideoUrl.includes('youtube.com') 
-                  ? activeVideoUrl.replace('watch?v=', 'embed/') + '?autoplay=1'
-                  : activeVideoUrl
-                }
-                className="w-full h-full border-0"
-                allow="autoplay; encrypted-media"
-                allowFullScreen
-              ></iframe>
-            ) : (
-              <div className="w-full h-full flex flex-col items-center justify-center text-white">
-                <Video size={64} className="mb-4 text-slate-700" />
-                <p className="text-lg font-bold">Video not available</p>
-              </div>
-            )}
+          <div className="space-y-3 mb-6">
+            <h1 className="text-4xl font-black text-slate-900 tracking-tight">{selectedTutorialForPlayer.title}</h1>
+            <p className="text-slate-500 font-medium max-w-3xl leading-relaxed">{selectedTutorialForPlayer.description}</p>
+          </div>
+
+          <div className="aspect-video w-full rounded-3xl overflow-hidden bg-slate-900 border-4 border-white shadow-2xl shadow-indigo-500/10">
+            <iframe
+              src={getEmbedUrl(selectedTutorialForPlayer.url) || ''}
+              className="w-full h-full"
+              frameBorder="0"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
+              title={selectedTutorialForPlayer.title}
+            ></iframe>
           </div>
         </main>
       )}

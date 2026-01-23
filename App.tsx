@@ -113,37 +113,39 @@ const App: React.FC = () => {
 
       const { data: stData } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
       if (stData) {
-        let dbTutorials = stData.tutorials;
-        // Handle both JSON and stringified JSON from DB
-        if (typeof dbTutorials === 'string' && dbTutorials.startsWith('[')) {
-          try {
-            dbTutorials = JSON.parse(dbTutorials);
-          } catch (e) {
-            console.error("Failed to parse tutorials string from DB", e);
-            dbTutorials = []; // Default to empty if parsing fails
-          }
-        }
-  
-        const settings = {
-          ...systemSettings, // start with current state
-          ...stData,
-          slotCapacity: stData.slotCapacity || systemSettings.slotCapacity || 2,
-          tutorials: Array.isArray(dbTutorials) && dbTutorials.length > 0 ? dbTutorials : systemSettings.tutorials
-        };
-        setSystemSettings(settings);
-        localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
+        setSystemSettings(prevSettings => {
+            let dbTutorials = stData.tutorials;
+            if (typeof dbTutorials === 'string' && dbTutorials.startsWith('[')) {
+                try {
+                    dbTutorials = JSON.parse(dbTutorials);
+                } catch (e) {
+                    console.error("Failed to parse tutorials string from DB", e);
+                    dbTutorials = prevSettings.tutorials; // fallback to previous state on parse error
+                }
+            }
+    
+            const newSettings = {
+              ...prevSettings,
+              ...stData,
+              slotCapacity: stData.slotCapacity || prevSettings.slotCapacity || 2,
+              // Use DB tutorials if it's an array (even empty), otherwise keep previous state tutorials
+              tutorials: Array.isArray(dbTutorials) ? dbTutorials : prevSettings.tutorials
+            };
+            localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
+            return newSettings;
+        });
       }
     } catch (err) {
       console.error("Fetch Error:", err);
     } finally {
       setIsLoading(false);
     }
-  }, [systemSettings]);
+  }, []);
 
   useEffect(() => { 
     // Initial fetch
     fetchData(); 
-  }, []);
+  }, [fetchData]);
 
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.TAB, activeTab); }, [activeTab]);
 

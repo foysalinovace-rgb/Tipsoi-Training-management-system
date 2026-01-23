@@ -27,6 +27,37 @@ interface TutorialManagerProps {
   onUpdate: (tutorials: TutorialItem[]) => void;
 }
 
+const getEmbedUrl = (url: string): string | null => {
+  if (!url || typeof url !== 'string') return null;
+
+  try {
+    let videoId: string | null = null;
+    
+    if (url.includes('youtube.com/watch')) {
+      const urlObj = new URL(url);
+      videoId = urlObj.searchParams.get('v');
+    }
+    else if (url.includes('youtu.be/')) {
+      const urlObj = new URL(url);
+      videoId = urlObj.pathname.substring(1);
+    }
+    else if (url.includes('youtube.com/embed/')) {
+      const urlObj = new URL(url);
+      const pathParts = urlObj.pathname.split('/');
+      videoId = pathParts[pathParts.length - 1];
+    }
+    
+    if (videoId) {
+      return `https://www.youtube.com/embed/${videoId.split('?')[0]}`;
+    }
+  } catch (error) {
+    console.warn("Invalid URL for embedding:", url, error);
+    return null;
+  }
+  
+  return null;
+};
+
 const TutorialManager: React.FC<TutorialManagerProps> = ({ tutorials, onUpdate }) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -79,7 +110,6 @@ const TutorialManager: React.FC<TutorialManagerProps> = ({ tutorials, onUpdate }
       category: tut.category,
       iconType: tut.iconType
     });
-    // Scroll to form
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
@@ -229,47 +259,75 @@ const TutorialManager: React.FC<TutorialManagerProps> = ({ tutorials, onUpdate }
           </div>
           
           <div className="grid grid-cols-1 gap-4">
-            {tutorials.map((tut, idx) => (
-              <div 
-                key={tut.id} 
-                className={`bg-white p-6 rounded-[2rem] border transition-all flex items-center justify-between group shadow-sm ${editingId === tut.id ? 'border-indigo-600 ring-2 ring-indigo-50' : 'border-slate-100 hover:border-indigo-200'}`}
-              >
-                <div className="flex items-center space-x-6">
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-sm transition-colors ${tut.category === 'package' ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
-                    {getIcon(tut.iconType)}
-                  </div>
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <h5 className="text-base font-black text-slate-800">{tut.title}</h5>
-                      <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${tut.category === 'package' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
-                        {tut.category === 'package' ? 'PACKAGE' : 'ADD-ON'}
-                      </span>
+            {tutorials.map((tut) => {
+              const embedUrl = getEmbedUrl(tut.url);
+              return (
+                <div 
+                  key={tut.id} 
+                  className={`bg-white p-6 rounded-[2rem] border transition-all group shadow-sm ${editingId === tut.id ? 'border-indigo-600 ring-2 ring-indigo-50' : 'border-slate-100 hover:border-indigo-200'}`}
+                >
+                  <div className="flex items-start justify-between w-full">
+                    <div className="flex items-start space-x-6 flex-1 min-w-0">
+                      <div className={`w-14 h-14 rounded-2xl flex items-center justify-center border shadow-sm transition-colors shrink-0 ${tut.category === 'package' ? 'bg-indigo-50 border-indigo-100 text-indigo-600' : 'bg-emerald-50 border-emerald-100 text-emerald-600'}`}>
+                        {getIcon(tut.iconType)}
+                      </div>
+                      <div className="space-y-1 flex-1 min-w-0">
+                        <div className="flex items-center space-x-2">
+                          <h5 className="text-base font-black text-slate-800 truncate">{tut.title}</h5>
+                          <span className={`px-2 py-0.5 rounded text-[8px] font-black uppercase tracking-widest ${tut.category === 'package' ? 'bg-indigo-100 text-indigo-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                            {tut.category === 'package' ? 'PACKAGE' : 'ADD-ON'}
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-slate-400 font-medium line-clamp-1">{tut.description || "No description provided."}</p>
+                        <div className="flex items-center text-[9px] text-indigo-500 font-mono pt-1">
+                          <LinkIcon size={10} className="mr-1.5 shrink-0" /> 
+                          <span className="truncate">{tut.url || 'No URL Configured'}</span>
+                        </div>
+                      </div>
                     </div>
-                    <p className="text-[10px] text-slate-400 font-medium line-clamp-1 max-w-md">{tut.description || "No description provided."}</p>
-                    <div className="flex items-center text-[9px] text-indigo-500 font-mono">
-                      <LinkIcon size={10} className="mr-1" /> {tut.url ? (tut.url.length > 50 ? tut.url.substring(0, 50) + '...' : tut.url) : 'No URL Configured'}
+                    
+                    <div className="flex items-center space-x-2 shrink-0 ml-4">
+                      <button 
+                        onClick={() => startEdit(tut)} 
+                        className="p-3 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
+                        title="Edit Content"
+                      >
+                        <Edit3 size={18} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(tut.id)} 
+                        className="p-3 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
+                        title="Remove Content"
+                      >
+                        <Trash2 size={18} />
+                      </button>
                     </div>
                   </div>
+
+                  {embedUrl ? (
+                    <div className="mt-6 aspect-video w-full rounded-2xl overflow-hidden bg-slate-800 border-4 border-slate-100 shadow-inner">
+                      <iframe
+                        src={embedUrl}
+                        className="w-full h-full"
+                        frameBorder="0"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        allowFullScreen
+                        title={tut.title}
+                      ></iframe>
+                    </div>
+                  ) : (
+                    tut.url && (
+                      <div className="mt-6 p-4 text-center bg-rose-50 rounded-xl border border-rose-100 flex items-center justify-center space-x-2">
+                        <Info size={14} className="text-rose-500"/>
+                        <p className="text-[10px] font-bold text-rose-600 uppercase tracking-widest">
+                          Invalid YouTube Link. Please provide a valid 'watch?v=' or 'youtu.be/' URL.
+                        </p>
+                      </div>
+                    )
+                  )}
                 </div>
-                
-                <div className="flex items-center space-x-2">
-                  <button 
-                    onClick={() => startEdit(tut)} 
-                    className="p-3 text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 rounded-xl transition-all"
-                    title="Edit Content"
-                  >
-                    <Edit3 size={18} />
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(tut.id)} 
-                    className="p-3 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all"
-                    title="Remove Content"
-                  >
-                    <Trash2 size={18} />
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
             
             {tutorials.length === 0 && (
               <div className="p-20 text-center border-2 border-dashed border-slate-100 rounded-[3rem] bg-slate-50/50">
