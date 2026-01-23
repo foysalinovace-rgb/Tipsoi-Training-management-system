@@ -341,6 +341,32 @@ const PublicBookingPage: React.FC<PublicBookingPageProps> = ({ slots, bookings, 
                 ))}
               </div>
             </div>
+
+            <div className="space-y-12">
+              <div className="flex items-center space-x-5">
+                <div className="w-1.5 h-10 bg-emerald-600 rounded-full"></div>
+                <h2 className="text-4xl font-black text-[#1E293B] tracking-tight">Add-on Modules</h2>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
+                {tutorialsByType.addons.map((tut, idx) => (
+                  <div key={tut.id} style={{ animationDelay: `${idx * 100}ms` }} className="animate-in fade-in slide-in-from-bottom-4 duration-700 fill-mode-both">
+                    <div 
+                      className="bg-white p-12 rounded-[2.5rem] border border-slate-100 shadow-[0_20px_50px_rgba(0,0,0,0.03)] hover:shadow-[0_40px_80px_rgba(0,0,0,0.06)] transition-all group flex flex-col items-start h-full cursor-pointer"
+                      onClick={() => handleTutorialClick(tut)}
+                    >
+                      <div className="w-20 h-20 bg-[#F1F5F9] rounded-[1.5rem] flex items-center justify-center mb-10 group-hover:scale-105 transition-transform duration-500">
+                        {getIconForType(tut.iconType)}
+                      </div>
+                      <h3 className="text-2xl font-black mb-4 text-[#1E293B]">{tut.title}</h3>
+                      <p className="text-slate-500 font-medium leading-relaxed mb-12 flex-grow text-sm">{tut.description}</p>
+                      <div className="inline-flex items-center text-xs font-black uppercase tracking-widest text-emerald-600 group-hover:text-emerald-800 transition-colors group/btn">
+                        Watch Tutorial <ArrowRightIcon size={16} className="ml-2 group-hover/btn:translate-x-1 transition-transform" />
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
         </main>
       )}
