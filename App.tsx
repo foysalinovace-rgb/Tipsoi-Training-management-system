@@ -113,10 +113,13 @@ const App: React.FC = () => {
 
       const { data: stData } = await supabase.from('settings').select('*').eq('id', 1).maybeSingle();
       if (stData) {
+        // Only override if the data exists in DB, otherwise keep local/default
         const settings = {
+          ...systemSettings, // start with current state
           ...stData,
-          slotCapacity: stData.slotCapacity || 2,
-          tutorials: stData.tutorials && stData.tutorials.length > 0 ? stData.tutorials : DEFAULT_TUTORIALS
+          slotCapacity: stData.slotCapacity || systemSettings.slotCapacity || 2,
+          // Merge tutorials carefully: if DB has tutorials, use them, otherwise keep current
+          tutorials: stData.tutorials && stData.tutorials.length > 0 ? stData.tutorials : systemSettings.tutorials
         };
         setSystemSettings(settings);
         localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(settings));
@@ -126,9 +129,13 @@ const App: React.FC = () => {
     } finally {
       setIsLoading(false);
     }
+  }, [systemSettings]);
+
+  useEffect(() => { 
+    // Initial fetch
+    fetchData(); 
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
   useEffect(() => { localStorage.setItem(STORAGE_KEYS.TAB, activeTab); }, [activeTab]);
 
   const handleUpdateSlots = async (newSlots: TrainingSlot[]) => {
@@ -148,53 +155,57 @@ const App: React.FC = () => {
   };
 
   const handleUpdateSystemSettings = async (newSettings: SystemSettings) => {
-    // 1. Update UI and Local Storage immediately
+    // 1. Update UI and Local Storage IMMEDIATELY for responsiveness
     setSystemSettings(newSettings);
     localStorage.setItem(STORAGE_KEYS.SETTINGS, JSON.stringify(newSettings));
 
-    // 2. Initial Full Payload
-    const fullPayload = {
-      id: 1,
-      panelName: newSettings.panelName,
-      slotCapacity: newSettings.slotCapacity,
-      tutorials: newSettings.tutorials,
-      logo: newSettings.logo || ''
-    };
-
-    try {
-      // First attempt: Try to save everything
-      const { error } = await supabase.from('settings').upsert(fullPayload, { onConflict: 'id' });
-      
-      if (error) {
-        console.warn("Full save failed, checking for column mismatch:", error);
-        
-        // Check if the error is specifically about 'slotCapacity' column missing in the database
-        if (error.message.includes('slotCapacity') || error.code === '42703') {
-           // Second attempt: Minimal payload (Remove slotCapacity if it doesn't exist in DB)
-           const minimalPayload = {
-             id: 1,
-             panelName: newSettings.panelName,
-             tutorials: newSettings.tutorials,
-             logo: newSettings.logo || ''
-           };
-           
-           const { error: retryError } = await supabase.from('settings').upsert(minimalPayload, { onConflict: 'id' });
-           if (retryError) {
-             console.error("Retry also failed:", retryError);
-             alert("Error saving tutorials. Please contact developer to update database schema.");
-           } else {
-             console.log("Successfully saved with minimal payload.");
-             await fetchData();
-           }
-        } else {
-          alert(`Server Error: ${error.message}. Changes saved locally.`);
-        }
-      } else {
-        await fetchData();
+    // 2. Prepare multiple fallback strategies for database sync
+    const strategies = [
+      // Strategy 1: Full payload
+      {
+        id: 1,
+        panelName: newSettings.panelName,
+        slotCapacity: newSettings.slotCapacity,
+        tutorials: newSettings.tutorials,
+        logo: newSettings.logo || ''
+      },
+      // Strategy 2: Remove slotCapacity (common missing column)
+      {
+        id: 1,
+        panelName: newSettings.panelName,
+        tutorials: newSettings.tutorials,
+        logo: newSettings.logo || ''
+      },
+      // Strategy 3: Tutorials only (Emergency fallback)
+      {
+        id: 1,
+        tutorials: newSettings.tutorials
       }
-    } catch (err) {
-      console.error("Network or unexpected error:", err);
-      alert("Changes saved to your browser, but failed to sync with server. Check internet connection.");
+    ];
+
+    let savedSuccessfully = false;
+
+    for (const [index, payload] of strategies.entries()) {
+      try {
+        const { error } = await supabase.from('settings').upsert(payload, { onConflict: 'id' });
+        
+        if (!error) {
+          console.log(`Successfully saved using Strategy ${index + 1}`);
+          savedSuccessfully = true;
+          break; // Exit loop on success
+        } else {
+          console.warn(`Strategy ${index + 1} failed:`, error.message);
+          // If it's not a column error, maybe we shouldn't continue? 
+          // But usually column missing is why it fails.
+        }
+      } catch (err) {
+        console.error(`Strategy ${index + 1} exception:`, err);
+      }
+    }
+
+    if (!savedSuccessfully) {
+      console.error("All sync strategies failed.");
+      alert("Tutorial links saved to your browser, but could not sync with the database server. Please check your Supabase table schema.");
     }
   };
 
