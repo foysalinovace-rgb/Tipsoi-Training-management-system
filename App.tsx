@@ -79,6 +79,7 @@ const App: React.FC = () => {
   const [isSlotEditModalOpen, setIsSlotEditModalOpen] = useState(false);
   const [selectedBookingForEdit, setSelectedBookingForEdit] = useState<TrainingBooking | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isDataRefreshing, setIsDataRefreshing] = useState(false);
   const [kams, setKams] = useState<string[]>([]);
   const [packages, setPackages] = useState<string[]>([]);
   const [systemSettings, setSystemSettings] = useState<SystemSettings>(() => {
@@ -95,6 +96,7 @@ const App: React.FC = () => {
   });
 
   const fetchData = useCallback(async () => {
+    setIsDataRefreshing(true);
     try {
       const { data: bData } = await supabase.from('bookings').select('*').order('date', { ascending: false });
       if (bData) setBookings(bData);
@@ -139,6 +141,7 @@ const App: React.FC = () => {
       console.error("Fetch Error:", err);
     } finally {
       setIsLoading(false);
+      setIsDataRefreshing(false);
     }
   }, []);
 
@@ -226,14 +229,60 @@ const App: React.FC = () => {
       case 'bookings': 
         return <BookingList bookings={internalBookings} onAdd={() => { setSelectedBookingForEdit(null); setIsBookingModalOpen(true); }} onEdit={(b) => { setSelectedBookingForEdit(b); setIsBookingModalOpen(true); }} onDelete={async (id) => { await supabase.from('bookings').delete().eq('id', id); fetchData(); }} />;
       case 'slot-report': 
-        return <SlotReport bookings={bookings} onEdit={(b) => { setSelectedBookingForEdit(b); setIsSlotEditModalOpen(true); }} onDelete={async (id) => { await supabase.from('bookings').delete().eq('id', id); fetchData(); }} />;
+        return <SlotReport bookings={bookings} onEdit={(b) => { setSelectedBookingForEdit(b); setIsSlotEditModalOpen(true); }} onDelete={async (id) => { await supabase.from('bookings').delete().eq('id', id); fetchData(); }} onRefresh={fetchData} isRefreshing={isDataRefreshing} />;
       case 'tutorials': 
         return <TutorialManager 
           tutorials={systemSettings.tutorials || []} 
           onUpdate={(tuts) => handleUpdateSystemSettings({ ...systemSettings, tutorials: tuts })} 
         />;
-      case 'kam': return <KAMManager kams={kams} onUpdate={async (newKams) => { setKams(newKams); await supabase.from('kams').delete().neq('id', 'temp_placeholder'); await supabase.from('kams').insert(newKams.map(n => ({ name: n }))); fetchData(); }} />;
-      case 'packages': return <PackageManager packages={packages} onUpdate={async (newPkgs) => { setPackages(newPkgs); await supabase.from('packages').delete().neq('id', 'temp_placeholder'); await supabase.from('packages').insert(newPkgs.map(n => ({ name: n }))); fetchData(); }} />;
+      case 'kam': 
+        return <KAMManager 
+          kams={kams} 
+          onUpdate={async (newKams) => {
+            const { error: deleteError } = await supabase.from('kams').delete().neq('name', 'this-is-a-placeholder-that-should-not-exist');
+            if (deleteError) {
+              console.error("Supabase KAM delete error:", deleteError);
+              alert(`Failed to update KAM list (Error code: K-DEL). The new data will not be saved. Please check the 'kams' table permissions in your Supabase project.`);
+              fetchData();
+              return;
+            }
+        
+            if (newKams.length > 0) {
+              const { error: insertError } = await supabase.from('kams').insert(newKams.map(n => ({ name: n })));
+              if (insertError) {
+                console.error("Supabase KAM insert error:", insertError);
+                alert(`Failed to update KAM list (Error code: K-INS). The new data will not be saved. Please check the 'kams' table permissions and ensure the 'name' column is unique.`);
+                fetchData();
+                return;
+              }
+            }
+            fetchData();
+          }} 
+        />;
+      case 'packages': 
+        return <PackageManager 
+          packages={packages} 
+          onUpdate={async (newPkgs) => {
+            const { error: deleteError } = await supabase.from('packages').delete().neq('name', 'this-is-a-placeholder-that-should-not-exist');
+            if (deleteError) {
+              console.error("Supabase Package delete error:", deleteError);
+              alert(`Failed to update Package list (Error code: P-DEL). The new data will not be saved. Please check the 'packages' table permissions in your Supabase project.`);
+              fetchData();
+              return;
+            }
+
+            if (newPkgs.length > 0) {
+              const { error: insertError } = await supabase.from('packages').insert(newPkgs.map(n => ({ name: n })));
+              if (insertError) {
+                console.error("Supabase Package insert error:", insertError);
+                alert(`Failed to update Package list (Error code: P-INS). The new data will not be saved. Please check the 'packages' table permissions and ensure the 'name' column is unique.`);
+                fetchData();
+                return;
+              }
+            }
+            fetchData();
+          }} 
+        />;
       case 'slots': return <SlotManager slots={slots} onUpdate={handleUpdateSlots} slotCapacity={systemSettings.slotCapacity} />;
       case 'reports': return <ReportModule bookings={internalBookings} />;
       case 'analytics': return <Analytics bookings={bookings} users={users} />;
@@ -248,6 +297,7 @@ const App: React.FC = () => {
       const newBooking: Partial<TrainingBooking> = {
         id: `REQ-${Math.floor(1000 + Math.random() * 9000)}`,
         clientName: d.companyName,
+        phoneNumber: d.phoneNumber,
         assignedPerson: 'TBD',
         kamName: 'TBD',
         title: 'Training Request',
