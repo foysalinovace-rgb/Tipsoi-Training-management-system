@@ -1,4 +1,3 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { 
   FileSpreadsheet, 
@@ -18,7 +17,8 @@ import {
   ChevronLeft,
   ChevronRight,
   RotateCcw,
-  Check
+  Check,
+  CalendarDays
 } from 'lucide-react';
 import { TrainingBooking, BookingStatus } from '../types';
 import { jsPDF } from 'jspdf';
@@ -47,7 +47,8 @@ const formatTo12h = (time24: string) => {
 
 const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
+  // Changed: Initialized to empty string to show all reports by default
+  const [selectedDate, setSelectedDate] = useState('');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [isCalendarOpen, setIsCalendarOpen] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
@@ -111,10 +112,9 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
     setRangeCalendarMonth(new Date(rangeCalendarMonth.getFullYear(), rangeCalendarMonth.getMonth() + offset, 1));
   };
 
-  const hasBookingsOnDate = (dateStr: string) => bookings.some(b => b.date === dateStr);
-
   const formatDateDisplay = (dateStr: string) => {
-    if (!dateStr) return 'Select Date';
+    // Changed: Handle empty string to display "All Records"
+    if (!dateStr) return 'All Records';
     return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'short',
       day: 'numeric',
@@ -125,6 +125,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
   const handleApplyRange = () => {
     if (rangeStartDate && rangeEndDate) {
       setIsRangeActive(true);
+      setSelectedDate(''); // Clear single date when range is active
       setIsFilterOpen(false);
     }
   };
@@ -133,6 +134,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
     setRangeStartDate('');
     setRangeEndDate('');
     setIsRangeActive(false);
+    setSelectedDate(''); // Reset to All Records
     setActiveRangePicker(null);
   };
 
@@ -141,10 +143,10 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
                           b.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
                           b.kamName?.toLowerCase().includes(searchTerm.toLowerCase());
     
-    let matchesDate = false;
+    let matchesDate = true; // Default to showing all
     if (isRangeActive && rangeStartDate && rangeEndDate) {
       matchesDate = b.date >= rangeStartDate && b.date <= rangeEndDate;
-    } else {
+    } else if (selectedDate) {
       matchesDate = b.date === selectedDate;
     }
 
@@ -166,7 +168,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
       doc.text(`Generated on: ${new Date().toLocaleString('en-US', { hour12: true })}`, 14, 28);
       const dateDisplay = isRangeActive 
         ? `${formatDateDisplay(rangeStartDate)} to ${formatDateDisplay(rangeEndDate)}`
-        : selectedDate;
+        : (selectedDate ? formatDateDisplay(selectedDate) : 'All Records');
       doc.text(`Report for Period: ${dateDisplay}`, 14, 33);
       doc.text(`Total Records: ${filteredData.length}`, 14, 38);
       
@@ -208,7 +210,7 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
         y += 8;
       });
 
-      doc.save(`Tipsoi-CST-Report-${isRangeActive ? 'Range' : selectedDate}.pdf`);
+      doc.save(`Tipsoi-CST-Report-${isRangeActive ? 'Range' : (selectedDate || 'All')}.pdf`);
     } catch (error) {
       console.error('PDF Generation Error:', error);
       alert('Failed to generate PDF. Please try again.');
@@ -339,6 +341,17 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
                     </div>
                   ))}
                 </div>
+                {selectedDate && (
+                  <button 
+                    onClick={() => {
+                      setSelectedDate('');
+                      setIsCalendarOpen(false);
+                    }}
+                    className="w-full mt-4 py-2 bg-slate-100 text-slate-600 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-slate-200 transition-all flex items-center justify-center"
+                  >
+                    <RotateCcw size={12} className="mr-2" /> Show All Records
+                  </button>
+                )}
               </div>
             )}
 
@@ -448,7 +461,9 @@ const ReportModule: React.FC<ReportModuleProps> = ({ bookings }) => {
             <span className={`text-[10px] font-black uppercase tracking-widest ${isRangeActive ? 'text-blue-200' : 'text-blue-700'}`}>
               {isRangeActive 
                 ? `Report for Period: ${formatDateDisplay(rangeStartDate)} to ${formatDateDisplay(rangeEndDate)}`
-                : `Report for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
+                : (selectedDate 
+                    ? `Report for ${new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
+                    : 'Showing All Historical Training Records')
               }
             </span>
           </div>
