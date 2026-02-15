@@ -185,7 +185,7 @@ const App: React.FC = () => {
       case 'dashboard': return <Dashboard bookings={internalBookings} users={users} />;
       case 'mdb': return <MDBMasterHub />;
       case 'bookings': 
-        return <BookingList bookings={internalBookings} onAdd={() => { setSelectedBookingForEdit(null); setIsBookingModalOpen(true); }} onEdit={(b) => { setSelectedBookingForEdit(b); setIsBookingModalOpen(true); }} onDelete={async (id) => { await supabase.from('bookings').delete().eq('id', id); fetchData(); }} />;
+        return <BookingList bookings={internalBookings} onAdd={() => { setSelectedBookingForEdit(null); setIsBookingModalOpen(true); }} onEdit={(b) => { setSelectedBookingForEdit(b); setIsBookingModalOpen(true); }} onDelete={async (ids) => { await supabase.from('bookings').delete().in('id', ids); fetchData(); }} />;
       case 'slot-report': 
         return <SlotReport bookings={bookings} onEdit={(b) => { setSelectedBookingForEdit(b); setIsSlotEditModalOpen(true); }} onDelete={async (id) => { await supabase.from('bookings').delete().eq('id', id); fetchData(); }} onRefresh={fetchData} isRefreshing={isDataRefreshing} />;
       case 'tutorials': 

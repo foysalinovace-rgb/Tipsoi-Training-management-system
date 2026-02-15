@@ -7,32 +7,39 @@ import {
   Trash2, 
   Clock, 
   Briefcase, 
-  Package as PackageIcon, 
   ChevronLeft, 
   ChevronRight, 
   Info, 
-  Calendar as CalendarIcon, 
-  X, 
   Filter, 
   AlertTriangle, 
-  RotateCcw, 
-  Check,
-  History
+  History,
+  CheckSquare,
+  Square,
+  ChevronDown
 } from 'lucide-react';
 
 interface BookingListProps {
   bookings: TrainingBooking[];
   onAdd: () => void;
   onEdit: (booking: TrainingBooking) => void;
-  onDelete: (id: string) => void;
+  onDelete: (ids: string[]) => void;
 }
 
 const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState(''); // Empty means all records
   const [isMoreOpen, setIsMoreOpen] = useState(false);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  
+  // Selection State
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  
+  // Delete Modal State
+  const [deleteConfirmIds, setDeleteConfirmIds] = useState<string[] | null>(null);
+  
+  // Filter States
   const [rangeStartDate, setRangeStartDate] = useState('');
   const [rangeEndDate, setRangeEndDate] = useState('');
   const [isRangeActive, setIsRangeActive] = useState(false);
@@ -56,6 +63,11 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Reset page when filtering
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchTerm, isRangeActive, rangeStartDate, rangeEndDate, rowsPerPage]);
 
   const formatTime12h = (time24: string) => {
     if (!time24) return '';
@@ -100,20 +112,50 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
   };
 
   const filteredBookings = useMemo(() => {
-    return bookings.filter(b => {
-      const matchesSearch = 
-        b.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.package.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        b.clientName.toLowerCase().includes(searchTerm.toLowerCase());
-      
-      let matchesDate = true;
-      if (isRangeActive && rangeStartDate && rangeEndDate) {
-        matchesDate = b.date >= rangeStartDate && b.date <= rangeEndDate;
-      }
+    return bookings
+      .filter(b => {
+        const matchesSearch = 
+          b.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          b.package.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          b.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+        
+        let matchesDate = true;
+        if (isRangeActive && rangeStartDate && rangeEndDate) {
+          matchesDate = b.date >= rangeStartDate && b.date <= rangeEndDate;
+        }
 
-      return matchesSearch && matchesDate;
-    });
+        return matchesSearch && matchesDate;
+      })
+      .sort((a, b) => {
+        if (a.date !== b.date) return b.date.localeCompare(a.date);
+        if (a.startTime !== b.startTime) return b.startTime.localeCompare(a.startTime);
+        return (b.createdAt || '').localeCompare(a.createdAt || '');
+      });
   }, [bookings, searchTerm, isRangeActive, rangeStartDate, rangeEndDate]);
+
+  const totalPages = Math.ceil(filteredBookings.length / rowsPerPage);
+  const paginatedBookings = filteredBookings.slice((currentPage - 1) * rowsPerPage, currentPage * rowsPerPage);
+
+  const toggleSelectAll = () => {
+    if (selectedIds.size === paginatedBookings.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(paginatedBookings.map(b => b.id)));
+    }
+  };
+
+  const toggleSelectOne = (id: string) => {
+    const next = new Set(selectedIds);
+    if (next.has(id)) next.delete(id);
+    else next.add(id);
+    setSelectedIds(next);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedIds.size > 0) {
+      setDeleteConfirmIds(Array.from(selectedIds));
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -122,13 +164,24 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
           <h2 className="text-xl md:text-2xl font-bold text-slate-800 tracking-tight">Training Bookings</h2>
           <p className="text-slate-500 text-xs md:text-sm font-medium">Manage corporate training sessions</p>
         </div>
-        <button 
-          onClick={onAdd}
-          className="flex items-center justify-center px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs md:text-sm hover:bg-slate-800 shadow-xl shadow-slate-900/10 transition-all active:scale-95"
-        >
-          <Plus size={18} className="mr-2" />
-          New Booking
-        </button>
+        <div className="flex items-center space-x-2">
+          {selectedIds.size > 0 && (
+            <button 
+              onClick={handleBulkDelete}
+              className="flex items-center justify-center px-4 py-2.5 bg-red-50 text-red-600 border border-red-100 rounded-xl font-bold text-xs md:text-sm hover:bg-red-100 transition-all active:scale-95"
+            >
+              <Trash2 size={18} className="mr-2" />
+              Delete ({selectedIds.size})
+            </button>
+          )}
+          <button 
+            onClick={onAdd}
+            className="flex items-center justify-center px-6 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs md:text-sm hover:bg-slate-800 shadow-xl shadow-slate-900/10 transition-all active:scale-95"
+          >
+            <Plus size={18} className="mr-2" />
+            New Booking
+          </button>
+        </div>
       </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col relative z-10">
@@ -256,10 +309,15 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
           </div>
         </div>
 
-        <div className="overflow-x-auto custom-scrollbar rounded-b-2xl">
-          <table className="w-full text-left min-w-[950px]">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left min-w-[1000px]">
             <thead>
               <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
+                <th className="px-6 py-4 w-12">
+                  <button onClick={toggleSelectAll} className="text-slate-400 hover:text-blue-600 transition-colors">
+                    {selectedIds.size === paginatedBookings.length && paginatedBookings.length > 0 ? <CheckSquare size={18} /> : <Square size={18} />}
+                  </button>
+                </th>
                 <th className="px-6 py-4">ID</th>
                 <th className="px-6 py-4">Client</th>
                 <th className="px-6 py-4">Professional</th>
@@ -271,8 +329,13 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredBookings.map((booking) => (
-                <tr key={booking.id} className="hover:bg-slate-50/50 transition-colors group">
+              {paginatedBookings.map((booking) => (
+                <tr key={booking.id} className={`hover:bg-slate-50/50 transition-colors group ${selectedIds.has(booking.id) ? 'bg-blue-50/30' : ''}`}>
+                  <td className="px-6 py-4">
+                    <button onClick={() => toggleSelectOne(booking.id)} className={`${selectedIds.has(booking.id) ? 'text-blue-600' : 'text-slate-300'} hover:text-blue-600 transition-colors`}>
+                      {selectedIds.has(booking.id) ? <CheckSquare size={18} /> : <Square size={18} />}
+                    </button>
+                  </td>
                   <td className="px-6 py-4">
                     <span className="text-xs font-mono font-bold text-slate-700 bg-slate-100 px-2 py-1 rounded border border-slate-200">{booking.id}</span>
                   </td>
@@ -309,7 +372,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                   <td className="px-6 py-4 text-right">
                     <div className="flex items-center justify-end space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button onClick={() => onEdit(booking)} className="p-2 text-slate-400 hover:bg-slate-900 hover:text-white rounded-lg transition-all"><Edit3 size={16}/></button>
-                      <button onClick={() => setDeleteConfirmId(booking.id)} className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"><Trash2 size={16}/></button>
+                      <button onClick={() => setDeleteConfirmIds([booking.id])} className="p-2 text-slate-400 hover:bg-red-50 hover:text-red-600 rounded-lg transition-all"><Trash2 size={16}/></button>
                     </div>
                   </td>
                 </tr>
@@ -327,9 +390,57 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
             </div>
           )}
         </div>
+
+        {/* Enhanced Pagination Footer */}
+        <div className="px-6 py-4 border-t border-slate-100 bg-slate-50/30 flex flex-col sm:flex-row items-center justify-between gap-4 rounded-b-2xl">
+          <div className="flex items-center space-x-4">
+            <div className="flex items-center space-x-2">
+              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Rows per page:</span>
+              <div className="relative">
+                <select 
+                  value={rowsPerPage}
+                  onChange={(e) => setRowsPerPage(Number(e.target.value))}
+                  className="appearance-none bg-white border border-slate-200 rounded-lg px-3 py-1 pr-8 text-[11px] font-bold text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/10 transition-all cursor-pointer"
+                >
+                  <option value={10}>10</option>
+                  <option value={50}>50</option>
+                  <option value={100}>100</option>
+                  <option value={500}>500</option>
+                  <option value={1000}>1000</option>
+                </select>
+                <ChevronDown size={12} className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none" />
+              </div>
+            </div>
+            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest border-l border-slate-200 pl-4">
+              Showing {(currentPage - 1) * rowsPerPage + 1} - {Math.min(currentPage * rowsPerPage, filteredBookings.length)} of {filteredBookings.length}
+            </span>
+          </div>
+
+          <div className="flex items-center space-x-1">
+            <button 
+              onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+              disabled={currentPage === 1}
+              className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronLeft size={16} />
+            </button>
+            
+            <div className="flex items-center px-4">
+              <span className="text-[11px] font-black text-slate-700">Page {currentPage} of {totalPages || 1}</span>
+            </div>
+
+            <button 
+              onClick={() => setCurrentPage(prev => Math.min(totalPages, prev + 1))}
+              disabled={currentPage === totalPages || totalPages === 0}
+              className="p-2 rounded-lg border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              <ChevronRight size={16} />
+            </button>
+          </div>
+        </div>
       </div>
 
-      {deleteConfirmId && (
+      {deleteConfirmIds && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-3xl shadow-2xl w-full max-w-sm overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="p-8 text-center">
@@ -337,11 +448,22 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                 <AlertTriangle size={32} />
               </div>
               <h3 className="text-xl font-bold text-slate-800 uppercase tracking-tight">Confirm Deletion</h3>
-              <p className="text-slate-500 text-xs mt-2 leading-relaxed tracking-wide">Permanent removal of record <span className="text-slate-900 font-bold">{deleteConfirmId}</span>? This action is irreversible.</p>
+              <p className="text-slate-500 text-xs mt-2 leading-relaxed tracking-wide">
+                Permanent removal of <span className="text-slate-900 font-bold">{deleteConfirmIds.length} record{deleteConfirmIds.length > 1 ? 's' : ''}</span>? This action is irreversible.
+              </p>
             </div>
             <div className="p-4 bg-slate-50 grid grid-cols-2 gap-2">
-              <button onClick={() => setDeleteConfirmId(null)} className="py-2.5 bg-white border border-slate-200 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all">Cancel</button>
-              <button onClick={() => { onDelete(deleteConfirmId); setDeleteConfirmId(null); }} className="py-2.5 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/20">Delete</button>
+              <button onClick={() => setDeleteConfirmIds(null)} className="py-2.5 bg-white border border-slate-200 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all">Cancel</button>
+              <button 
+                onClick={() => { 
+                  onDelete(deleteConfirmIds); 
+                  setDeleteConfirmIds(null); 
+                  setSelectedIds(new Set());
+                }} 
+                className="py-2.5 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/20"
+              >
+                Delete
+              </button>
             </div>
           </div>
         </div>
