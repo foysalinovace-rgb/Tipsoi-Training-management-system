@@ -1,23 +1,23 @@
-
 import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { TrainingBooking, BookingStatus } from '../types';
 import { 
   Search, 
   Plus, 
-  Edit3,
-  Trash2,
-  Clock,
-  Briefcase,
-  Package as PackageIcon,
-  ChevronLeft,
-  ChevronRight,
-  Info,
-  Calendar as CalendarIcon,
-  X,
-  Filter,
-  AlertTriangle,
-  RotateCcw,
-  Check
+  Edit3, 
+  Trash2, 
+  Clock, 
+  Briefcase, 
+  Package as PackageIcon, 
+  ChevronLeft, 
+  ChevronRight, 
+  Info, 
+  Calendar as CalendarIcon, 
+  X, 
+  Filter, 
+  AlertTriangle, 
+  RotateCcw, 
+  Check,
+  History
 } from 'lucide-react';
 
 interface BookingListProps {
@@ -27,19 +27,9 @@ interface BookingListProps {
   onDelete: (id: string) => void;
 }
 
-const getLocalDateString = () => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-};
-
 const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDelete }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [isCalendarOpen, setIsCalendarOpen] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(''); // Empty means all records
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   
@@ -49,15 +39,11 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
   const [activeRangePicker, setActiveRangePicker] = useState<'start' | 'end' | null>(null);
   const [rangeCalendarMonth, setRangeCalendarMonth] = useState(new Date());
 
-  const calendarRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
   const rangePickerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (calendarRef.current && !calendarRef.current.contains(event.target as Node)) {
-        setIsCalendarOpen(false);
-      }
       if (moreRef.current && !moreRef.current.contains(event.target as Node)) {
         if (rangePickerRef.current && rangePickerRef.current.contains(event.target as Node)) return;
         setIsMoreOpen(false);
@@ -82,11 +68,9 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
   };
 
   const formatDateDisplay = (dateStr: string) => {
-    if (!dateStr) return 'Select Date';
+    if (!dateStr) return 'All Time';
     return new Date(dateStr).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+      month: 'short', day: 'numeric', year: 'numeric'
     });
   };
 
@@ -95,9 +79,7 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
     const month = baseDate.getMonth();
     const totalDays = new Date(year, month + 1, 0).getDate();
     const startOffset = new Date(year, month, 1).getDay();
-    
     const days = [];
-    // Padding days for grid alignment
     for (let i = 0; i < startOffset; i++) days.push({ day: null, dateStr: '' });
     for (let i = 1; i <= totalDays; i++) {
       const dateStr = `${year}-${String(month + 1).padStart(2, '0')}-${String(i).padStart(2, '0')}`;
@@ -106,9 +88,6 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
     return days;
   };
 
-  const calendarData = useMemo(() => getCalendarDays(currentMonth), [currentMonth]);
-
-  const changeMonth = (offset: number) => setCurrentMonth(new Date(currentMonth.getFullYear(), currentMonth.getMonth() + offset, 1));
   const changeRangeMonth = (offset: number) => setRangeCalendarMonth(new Date(rangeCalendarMonth.getFullYear(), rangeCalendarMonth.getMonth() + offset, 1));
 
   const getStatusStyle = (status: BookingStatus) => {
@@ -120,17 +99,21 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
     }
   };
 
-  const filteredBookings = bookings.filter(b => {
-    const matchesSearch = b.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         b.package.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         b.clientName.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    let matchesDate = isRangeActive && rangeStartDate && rangeEndDate 
-      ? b.date >= rangeStartDate && b.date <= rangeEndDate 
-      : b.date === selectedDate;
+  const filteredBookings = useMemo(() => {
+    return bookings.filter(b => {
+      const matchesSearch = 
+        b.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.package.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        b.clientName.toLowerCase().includes(searchTerm.toLowerCase());
+      
+      let matchesDate = true;
+      if (isRangeActive && rangeStartDate && rangeEndDate) {
+        matchesDate = b.date >= rangeStartDate && b.date <= rangeEndDate;
+      }
 
-    return matchesSearch && matchesDate;
-  });
+      return matchesSearch && matchesDate;
+    });
+  }, [bookings, searchTerm, isRangeActive, rangeStartDate, rangeEndDate]);
 
   return (
     <div className="space-y-6">
@@ -148,7 +131,6 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
         </button>
       </div>
 
-      {/* Container must NOT have overflow-hidden to allow calendar to overflow */}
       <div className="bg-white rounded-2xl border border-slate-200 shadow-sm flex flex-col relative z-10">
         <div className="p-4 border-b border-slate-100 bg-slate-50/30 flex flex-col lg:flex-row items-center gap-3 relative z-30 rounded-t-2xl">
           <div className="relative flex-1 w-full">
@@ -163,62 +145,21 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
           </div>
 
           <div className="flex items-center space-x-2 w-full lg:w-auto">
-            <div className="relative flex-1 lg:flex-none">
-              <button 
-                onClick={() => { setIsCalendarOpen(!isCalendarOpen); setIsMoreOpen(false); }}
-                className={`w-full lg:w-auto flex items-center justify-center space-x-3 px-4 py-2.5 rounded-xl border transition-all text-xs font-bold ${
-                  isCalendarOpen ? 'bg-blue-600 text-white border-blue-600' : (isRangeActive ? 'bg-slate-100 text-slate-400 border-slate-200 line-through' : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50')
-                }`}
-              >
-                <CalendarIcon size={16} />
-                <span className="whitespace-nowrap">{formatDateDisplay(selectedDate)}</span>
-              </button>
-
-              {isCalendarOpen && (
-                <div ref={calendarRef} className="absolute top-full right-0 lg:left-0 mt-2 w-72 bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 z-50 animate-in fade-in slide-in-from-top-2">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="text-xs font-black text-slate-800 uppercase tracking-tighter">{currentMonth.toLocaleString('default', { month: 'long', year: 'numeric' })}</span>
-                    <div className="flex space-x-1">
-                      <button onClick={() => changeMonth(-1)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"><ChevronLeft size={16}/></button>
-                      <button onClick={() => changeMonth(1)} className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500"><ChevronRight size={16}/></button>
-                    </div>
-                  </div>
-                  <div className="grid grid-cols-7 gap-1 text-center mb-2">
-                    {['S', 'M', 'T', 'W', 'T', 'F', 'S'].map(d => <div key={d} className="text-[9px] font-black text-slate-300 uppercase">{d}</div>)}
-                  </div>
-                  <div className="grid grid-cols-7 gap-1">
-                    {calendarData.map((data, idx) => (
-                      <div key={idx} className="aspect-square flex items-center justify-center">
-                        {data.day ? (
-                          <button
-                            onClick={() => { setSelectedDate(data.dateStr); setIsCalendarOpen(false); setIsRangeActive(false); }}
-                            className={`w-8 h-8 rounded-lg text-xs font-bold transition-all flex items-center justify-center ${selectedDate === data.dateStr && !isRangeActive ? 'bg-blue-600 text-white shadow-sm' : 'hover:bg-slate-100 text-slate-600'}`}
-                          >
-                            {data.day}
-                          </button>
-                        ) : <div className="w-8 h-8" />}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-
             <div className="relative flex-1 lg:flex-none" ref={moreRef}>
               <button 
-                onClick={() => { setIsMoreOpen(!isMoreOpen); setIsCalendarOpen(false); }}
-                className={`w-full lg:w-auto inline-flex items-center justify-center px-4 py-2.5 rounded-xl border transition-all text-xs font-bold shadow-sm ${
+                onClick={() => setIsMoreOpen(!isMoreOpen)}
+                className={`w-full lg:w-auto inline-flex items-center justify-center px-6 py-2.5 rounded-xl border transition-all text-xs font-bold shadow-sm ${
                   isMoreOpen || isRangeActive ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-slate-600 border-slate-200 hover:bg-slate-50'
                 }`}
               >
                 <Filter size={16} className="mr-2" />
-                Filter
+                {isRangeActive ? 'Filter Active' : 'Filter by Range'}
               </button>
 
               {isMoreOpen && (
                 <div className="absolute top-full right-0 mt-2 w-72 md:w-80 bg-white rounded-2xl shadow-2xl border border-slate-200 z-50 animate-in fade-in slide-in-from-top-2 overflow-visible">
                   <div className="p-4 border-b border-slate-100 bg-slate-50/50">
-                    <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Advanced Filter</h4>
+                    <h4 className="text-[10px] font-black text-slate-800 uppercase tracking-widest">Date Range Selection</h4>
                   </div>
                   <div className="p-4 space-y-4">
                     <div className="grid grid-cols-1 gap-3">
@@ -298,25 +239,33 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
           </div>
         </div>
 
-        <div className={`px-4 md:px-6 py-2 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 relative z-20 ${isRangeActive ? 'bg-slate-900 text-white' : 'bg-blue-50/50'}`}>
+        <div className={`px-4 md:px-6 py-2.5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-2 relative z-20 ${isRangeActive ? 'bg-slate-900 text-white' : 'bg-blue-50/50'}`}>
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${isRangeActive ? 'bg-blue-400 animate-pulse' : 'bg-blue-500'}`}></div>
             <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest truncate">
-              {isRangeActive ? `${formatDateDisplay(rangeStartDate)} to ${formatDateDisplay(rangeEndDate)}` : formatDateDisplay(selectedDate)}
+              {isRangeActive ? `Range: ${formatDateDisplay(rangeStartDate)} — ${formatDateDisplay(rangeEndDate)}` : 'Showing All Historical Bookings'}
             </span>
           </div>
-          <span className="text-[9px] md:text-[10px] font-bold uppercase text-slate-400">{filteredBookings.length} Results</span>
+          <div className="flex items-center space-x-4">
+             <span className="text-[9px] md:text-[10px] font-bold uppercase text-slate-400">{filteredBookings.length} Total Records Found</span>
+             {!isRangeActive && (
+               <div className="flex items-center text-blue-600 text-[10px] font-black uppercase">
+                 <History size={12} className="mr-1.5" /> Full History Mode
+               </div>
+             )}
+          </div>
         </div>
 
         <div className="overflow-x-auto custom-scrollbar rounded-b-2xl">
-          <table className="w-full text-left min-w-[900px]">
+          <table className="w-full text-left min-w-[950px]">
             <thead>
               <tr className="bg-slate-50 text-slate-400 text-[10px] font-black uppercase tracking-widest border-b border-slate-100">
                 <th className="px-6 py-4">ID</th>
                 <th className="px-6 py-4">Client</th>
                 <th className="px-6 py-4">Professional</th>
                 <th className="px-6 py-4">Package</th>
-                <th className="px-6 py-4">Schedule</th>
+                <th className="px-6 py-4">Training Date</th>
+                <th className="px-6 py-4">Time</th>
                 <th className="px-6 py-4 text-center">Status</th>
                 <th className="px-6 py-4 text-right">Actions</th>
               </tr>
@@ -341,18 +290,15 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
                       <span className="font-semibold truncate max-w-[120px]">{booking.assignedPerson}</span>
                     </div>
                   </td>
-                  <td className="px-6 py-4 text-xs text-slate-600">
-                    <div className="flex items-center">
-                      <PackageIcon size={14} className="mr-2 text-slate-300" />
-                      {booking.package}
-                    </div>
+                  <td className="px-6 py-4 text-xs text-slate-600 font-bold uppercase tracking-tighter">
+                    {booking.package}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <div className="text-xs font-bold text-slate-700">{booking.date}</div>
                   </td>
                   <td className="px-6 py-4">
-                    <div className="flex flex-col text-[10px] font-bold text-slate-600">
-                      <span className="text-slate-900 text-[11px] flex items-center">
-                        <Clock size={12} className="mr-1 text-blue-500" /> {formatTime12h(booking.startTime)}
-                      </span>
-                      <span className="text-slate-400 uppercase tracking-tighter mt-0.5">{booking.duration} hr</span>
+                    <div className="flex items-center text-[10px] font-bold text-slate-600">
+                      <Clock size={12} className="mr-1.5 text-blue-500" /> {formatTime12h(booking.startTime)}
                     </div>
                   </td>
                   <td className="px-6 py-4 text-center">
@@ -376,8 +322,8 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
               <div className="mx-auto w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4 border border-slate-100 text-slate-300">
                 <Info size={32} />
               </div>
-              <h3 className="text-slate-800 font-bold">No Records Found</h3>
-              <p className="text-slate-400 text-sm mt-1">Refine your search or date filters.</p>
+              <h3 className="text-slate-800 font-bold uppercase tracking-widest text-sm">No Records Found</h3>
+              <p className="text-slate-400 text-[10px] font-bold uppercase mt-1">Adjust filters to see more data</p>
             </div>
           )}
         </div>
@@ -390,12 +336,12 @@ const BookingList: React.FC<BookingListProps> = ({ bookings, onAdd, onEdit, onDe
               <div className="w-16 h-16 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 border-2 border-red-100">
                 <AlertTriangle size={32} />
               </div>
-              <h3 className="text-xl font-bold text-slate-800">Confirm Deletion</h3>
-              <p className="text-slate-500 text-sm mt-2 leading-relaxed">Permanent removal of record <span className="text-slate-900 font-bold">{deleteConfirmId}</span>? This cannot be undone.</p>
+              <h3 className="text-xl font-bold text-slate-800 uppercase tracking-tight">Confirm Deletion</h3>
+              <p className="text-slate-500 text-xs mt-2 leading-relaxed tracking-wide">Permanent removal of record <span className="text-slate-900 font-bold">{deleteConfirmId}</span>? This action is irreversible.</p>
             </div>
-            <div className="p-6 bg-slate-50 grid grid-cols-2 gap-3">
-              <button onClick={() => setDeleteConfirmId(null)} className="py-3 bg-white border border-slate-200 text-slate-600 font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all">Cancel</button>
-              <button onClick={() => { onDelete(deleteConfirmId); setDeleteConfirmId(null); }} className="py-3 bg-red-600 text-white font-bold text-xs uppercase tracking-widest rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/20">Delete</button>
+            <div className="p-4 bg-slate-50 grid grid-cols-2 gap-2">
+              <button onClick={() => setDeleteConfirmId(null)} className="py-2.5 bg-white border border-slate-200 text-slate-500 font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-slate-100 transition-all">Cancel</button>
+              <button onClick={() => { onDelete(deleteConfirmId); setDeleteConfirmId(null); }} className="py-2.5 bg-red-600 text-white font-black text-[10px] uppercase tracking-widest rounded-xl hover:bg-red-700 shadow-lg shadow-red-600/20">Delete</button>
             </div>
           </div>
         </div>
